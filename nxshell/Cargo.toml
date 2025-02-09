@@ -1,0 +1,55 @@
+[package]
+name = "nxshell"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+catppuccin-egui = { path = "../crates/catppuccin-egui" }
+chrono.workspace = true
+copypasta.workspace = true
+egui.workspace = true
+eframe = { workspace = true, features = [
+    "accesskit", # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    "wgpu", # Use the glow rendering backend. Alternative: "wgpu".
+    "persistence", # Enable restoring app state when restarting the app.
+] }
+egui-term = { path = "../crates/egui-term" }
+egui_dock = { path = "../crates/egui-dock" }
+egui_extras = { workspace = true, features = ["all_loaders"] }
+egui_form = { path = "../crates/egui-form", features = ["validator_garde"] }
+egui-theme-switch = { path = "../crates/egui-theme-switch" }
+egui-toast = { path = "../crates/egui-toast" }
+garde = { workspace = true, features = ["full"] }
+homedir.workspace = true
+indexmap.workspace = true
+open.workspace = true
+orion.workspace = true
+rusqlite = { workspace = true, features = ["bundled"] }
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+uuid = { workspace = true, features = ["v4"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = ["Win32_System_Threading"] }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true, features = ["process"] }
+
+# cargo install cargo-packager --locked
+# cargo packager --release
+[package.metadata.packager]
+before-packaging-command = "cargo build --release"
+product-name = "nxsell"
+identifier = "io.github.iamazy"
+resources = []
+out-dir = "../target/dist"
+icons = []

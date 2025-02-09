@@ -1,0 +1,15 @@
+[package]
+name = "egui-theme-switch"
+version = "0.2.3"
+edition = "2021"
+rust-version = "1.80.0"
+license = "MIT OR Apache-2.0"
+readme = "readme.md"
+repository = "https://github.com/bash/egui-theme-switch"
+description = "A pretty theme switch for your egui app"
+keywords = ["egui", "widget", "dark-light", "switch"]
+categories = ["gui"]
+exclude = [".github", "doc/*.py", "doc/*.png", "deny.toml"]
+
+[dependencies]
+egui.workspace = true

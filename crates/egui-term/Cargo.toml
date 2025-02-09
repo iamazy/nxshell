@@ -1,0 +1,33 @@
+[package]
+name = "egui-term"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors = ["Harzu <ilia@shvyrialkin.ru>", "iamazy <iamazy.me@outlook.com>"]
+documentation.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+alacritty_terminal.workspace = true
+anyhow.workspace = true
+copypasta.workspace = true
+egui.workspace = true
+open.workspace = true
+parking_lot.workspace = true
+polling.workspace = true
+smol.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+wezterm-ssh = { workspace = true, features = ["vendored-openssl"] }
+
+
+[dev-dependencies]
+eframe = { workspace = true, features = [
+    "accesskit", # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    "wgpu", # Use the glow rendering backend. Alternative: "wgpu".
+    "persistence", # Enable restoring app state when restarting the app.
+] }
