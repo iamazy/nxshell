@@ -130,6 +130,7 @@ impl From<TerminalSize> for WindowSize {
     }
 }
 
+#[derive(PartialEq)]
 pub enum TermType {
     Regular { working_directory: Option<PathBuf> },
     Ssh { options: SshOptions },
@@ -142,6 +143,12 @@ pub struct Terminal {
     pub size: TerminalSize,
     notifier: Notifier,
     pub hovered_hyperlink: Option<Match>,
+}
+
+impl PartialEq for Terminal {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 impl Terminal {
@@ -233,6 +240,7 @@ impl Terminal {
         let _pty_event_subscription = std::thread::Builder::new()
             .name(format!("pty_event_subscription_{}", id))
             .spawn(move || while let Ok(event) = event_receiver.recv() {
+                println!("event: {event:?}");
                 pty_event_proxy_sender
                     .send((id, event.clone()))
                     .unwrap_or_else(|err| {

@@ -7,8 +7,8 @@ use polling::{Event, PollMode, Poller};
 use std::sync::Arc;
 use tracing::{error, trace};
 use wezterm_ssh::{
-    Child, Config, FileDescriptor, MasterPty, PtySize, Session, SessionEvent, SshChildProcess,
-    SshPty,
+    Child, ChildKiller, Config, FileDescriptor, MasterPty, PtySize, Session, SessionEvent,
+    SshChildProcess, SshPty,
 };
 
 #[cfg(unix)]
@@ -20,6 +20,11 @@ use std::os::windows::io::{AsRawSocket, AsSocket};
 // Interest in PTY read/writes.
 #[cfg(unix)]
 const PTY_READ_WRITE_TOKEN: usize = 0;
+#[cfg(unix)]
+const PTY_CHILD_EVENT_TOKEN: usize = 1;
+
+#[cfg(windows)]
+const PTY_CHILD_EVENT_TOKEN: usize = 1;
 #[cfg(windows)]
 const PTY_READ_WRITE_TOKEN: usize = 2;
 
@@ -184,26 +189,12 @@ impl Pty {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SshOptions {
+    pub group: String,
+    pub name: String,
     pub host: String,
     pub port: Option<u16>,
     pub user: Option<String>,
     pub password: Option<String>,
-}
-
-impl SshOptions {
-    pub fn new(
-        host: String,
-        port: Option<u16>,
-        user: Option<String>,
-        password: Option<String>,
-    ) -> Self {
-        Self {
-            host,
-            port,
-            user,
-            password,
-        }
-    }
 }

@@ -162,18 +162,15 @@ impl NxShell {
             match event {
                 PtyEvent::Exit => {
                     let mut index: Option<(SurfaceIndex, NodeIndex, TabIndex)> = None;
-                    for ((surface, node), tab) in self.dock_state.iter_all_tabs() {
+                    for (_, tab) in self.dock_state.iter_all_tabs() {
                         if tab.id() == tab_id {
-                            index = Some((surface, node, TabIndex(tab.id() as usize)));
+                            index = self.dock_state.find_tab(tab);
                             break;
                         }
                     }
                     if let Some(index) = index {
                         self.dock_state.remove_tab(index);
                     }
-                }
-                PtyEvent::Title(_title) => {
-                    // change tab title
                 }
                 _ => {}
             }
@@ -192,6 +189,8 @@ impl NxShell {
             ctx.clone(),
             TermType::Ssh {
                 options: SshOptions {
+                    group: session.group,
+                    name: session.name,
                     host: session.host,
                     port: Some(session.port),
                     user: Some(session.username),
