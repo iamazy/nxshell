@@ -82,7 +82,6 @@ impl EventedReadWrite for Pty {
         interest.key = PTY_READ_WRITE_TOKEN;
         let _ = self.pty.reader.set_non_blocking(true);
         let _ = self.pty.writer.set_non_blocking(true);
-        let _ = self.signals.set_nonblocking(true);
 
         #[cfg(unix)]
         {
