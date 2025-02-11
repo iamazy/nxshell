@@ -12,7 +12,17 @@ use wezterm_ssh::{
 };
 
 #[cfg(unix)]
-use std::os::fd::{AsFd, AsRawFd};
+use signal_hook::{
+    consts,
+    low_level::{pipe, unregister},
+    SigId,
+};
+
+#[cfg(unix)]
+use std::os::{
+    fd::{AsFd, AsRawFd},
+    unix::net::UnixStream,
+};
 
 #[cfg(windows)]
 use std::os::windows::io::{AsRawSocket, AsSocket};
@@ -20,18 +30,30 @@ use std::os::windows::io::{AsRawSocket, AsSocket};
 // Interest in PTY read/writes.
 #[cfg(unix)]
 const PTY_READ_WRITE_TOKEN: usize = 0;
-#[cfg(unix)]
-const PTY_CHILD_EVENT_TOKEN: usize = 1;
-
-#[cfg(windows)]
-const PTY_CHILD_EVENT_TOKEN: usize = 1;
 #[cfg(windows)]
 const PTY_READ_WRITE_TOKEN: usize = 2;
+const PTY_CHILD_EVENT_TOKEN: usize = 1;
 
 #[derive(Debug)]
 pub struct Pty {
     pub pty: SshPty,
     pub child: SshChildProcess,
+    #[cfg(unix)]
+    pub signals: UnixStream,
+    #[cfg(unix)]
+    pub sig_id: SigId,
+}
+
+impl Drop for Pty {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+
+        // Clear signal-hook handler.
+        #[cfg(unix)]
+        unregister(self.sig_id);
+
+        let _ = self.child.wait();
+    }
 }
 
 impl EventedPty for Pty {
@@ -60,11 +82,18 @@ impl EventedReadWrite for Pty {
         interest.key = PTY_READ_WRITE_TOKEN;
         let _ = self.pty.reader.set_non_blocking(true);
         let _ = self.pty.writer.set_non_blocking(true);
+        let _ = self.signals.set_nonblocking(true);
 
         #[cfg(unix)]
         {
             poller.add_with_mode(self.pty.reader.as_raw_fd(), interest, mode)?;
             poller.add_with_mode(self.pty.writer.as_raw_fd(), interest, mode)?;
+
+            poller.add_with_mode(
+                &self.signals,
+                Event::writable(PTY_CHILD_EVENT_TOKEN),
+                PollMode::Level,
+            )?;
         }
 
         #[cfg(windows)]
@@ -88,6 +117,12 @@ impl EventedReadWrite for Pty {
         {
             poller.modify_with_mode(self.pty.reader.as_fd(), interest, mode)?;
             poller.modify_with_mode(self.pty.writer.as_fd(), interest, mode)?;
+
+            poller.modify_with_mode(
+                &self.signals,
+                Event::writable(PTY_CHILD_EVENT_TOKEN),
+                PollMode::Level,
+            )?;
         }
 
         #[cfg(windows)]
@@ -104,6 +139,8 @@ impl EventedReadWrite for Pty {
         {
             poller.delete(self.pty.reader.as_fd())?;
             poller.delete(self.pty.writer.as_fd())?;
+
+            poller.delete(&self.signals)?;
         }
 
         #[cfg(windows)]
@@ -184,6 +221,28 @@ impl Pty {
             let (pty, child) = session
                 .request_pty("xterm-256color", PtySize::default(), None, None)
                 .await?;
+
+            #[cfg(unix)]
+            {
+                // Prepare signal handling before spawning child.
+                let (signals, sig_id) = {
+                    let (sender, recv) = UnixStream::pair()?;
+
+                    // Register the recv end of the pipe for SIGCHLD.
+                    let sig_id = pipe::register(consts::SIGCHLD, sender)?;
+                    recv.set_nonblocking(true)?;
+                    (recv, sig_id)
+                };
+
+                Ok(Pty {
+                    pty,
+                    child,
+                    signals,
+                    sig_id,
+                })
+            }
+
+            #[cfg(windows)]
             Ok(Pty { pty, child })
         })
     }

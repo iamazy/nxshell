@@ -23,6 +23,8 @@ thiserror.workspace = true
 tracing.workspace = true
 wezterm-ssh = { workspace = true, features = ["vendored-openssl"] }
 
+[target.'cfg(unix)'.dependencies]
+signal-hook.workspace = true
 
 [dev-dependencies]
 eframe = { workspace = true, features = [
