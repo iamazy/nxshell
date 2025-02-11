@@ -240,7 +240,6 @@ impl Terminal {
         let _pty_event_subscription = std::thread::Builder::new()
             .name(format!("pty_event_subscription_{}", id))
             .spawn(move || while let Ok(event) = event_receiver.recv() {
-                println!("event: {event:?}");
                 pty_event_proxy_sender
                     .send((id, event.clone()))
                     .unwrap_or_else(|err| {
