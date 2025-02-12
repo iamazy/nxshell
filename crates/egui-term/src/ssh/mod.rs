@@ -4,6 +4,8 @@ use alacritty_terminal::event::{OnResize, WindowSize};
 use alacritty_terminal::tty::{ChildEvent, EventedPty, EventedReadWrite};
 use anyhow::Context;
 use polling::{Event, PollMode, Poller};
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use tracing::{error, trace};
 use wezterm_ssh::{
@@ -12,17 +14,7 @@ use wezterm_ssh::{
 };
 
 #[cfg(unix)]
-use signal_hook::{
-    consts,
-    low_level::{pipe, unregister},
-    SigId,
-};
-
-#[cfg(unix)]
-use std::os::{
-    fd::{AsFd, AsRawFd},
-    unix::net::UnixStream,
-};
+use std::os::fd::{AsFd, AsRawFd};
 
 #[cfg(windows)]
 use std::os::windows::io::{AsRawSocket, AsSocket};
@@ -38,20 +30,12 @@ const PTY_CHILD_EVENT_TOKEN: usize = 1;
 pub struct Pty {
     pub pty: SshPty,
     pub child: SshChildProcess,
-    #[cfg(unix)]
-    pub signals: UnixStream,
-    #[cfg(unix)]
-    pub sig_id: SigId,
+    pub signal: TcpStream,
 }
 
 impl Drop for Pty {
     fn drop(&mut self) {
         let _ = self.child.kill();
-
-        // Clear signal-hook handler.
-        #[cfg(unix)]
-        unregister(self.sig_id);
-
         let _ = self.child.wait();
     }
 }
@@ -82,6 +66,7 @@ impl EventedReadWrite for Pty {
         interest.key = PTY_READ_WRITE_TOKEN;
         let _ = self.pty.reader.set_non_blocking(true);
         let _ = self.pty.writer.set_non_blocking(true);
+        let _ = self.signal.set_nonblocking(true);
 
         #[cfg(unix)]
         {
@@ -89,8 +74,8 @@ impl EventedReadWrite for Pty {
             poller.add_with_mode(self.pty.writer.as_raw_fd(), interest, mode)?;
 
             poller.add_with_mode(
-                &self.signals,
-                Event::writable(PTY_CHILD_EVENT_TOKEN),
+                self.signal.as_raw_fd(),
+                Event::readable(PTY_CHILD_EVENT_TOKEN),
                 PollMode::Level,
             )?;
         }
@@ -99,6 +84,12 @@ impl EventedReadWrite for Pty {
         {
             poller.add_with_mode(self.pty.reader.as_raw_socket(), interest, mode)?;
             poller.add_with_mode(self.pty.writer.as_raw_socket(), interest, mode)?;
+
+            poller.add_with_mode(
+                self.signal.as_raw_socket(),
+                Event::readable(crate::ssh::PTY_CHILD_EVENT_TOKEN),
+                PollMode::Level,
+            )?;
         }
 
         Ok(())
@@ -118,8 +109,8 @@ impl EventedReadWrite for Pty {
             poller.modify_with_mode(self.pty.writer.as_fd(), interest, mode)?;
 
             poller.modify_with_mode(
-                &self.signals,
-                Event::writable(PTY_CHILD_EVENT_TOKEN),
+                self.signal.as_fd(),
+                Event::readable(PTY_CHILD_EVENT_TOKEN),
                 PollMode::Level,
             )?;
         }
@@ -128,6 +119,12 @@ impl EventedReadWrite for Pty {
         {
             poller.modify_with_mode(self.pty.reader.as_socket(), interest, mode)?;
             poller.modify_with_mode(self.pty.writer.as_socket(), interest, mode)?;
+
+            poller.modify_with_mode(
+                self.signal.as_socket(),
+                Event::readable(crate::ssh::PTY_CHILD_EVENT_TOKEN),
+                PollMode::Level,
+            )?;
         }
 
         Ok(())
@@ -139,13 +136,15 @@ impl EventedReadWrite for Pty {
             poller.delete(self.pty.reader.as_fd())?;
             poller.delete(self.pty.writer.as_fd())?;
 
-            poller.delete(&self.signals)?;
+            poller.delete(self.signal.as_fd())?;
         }
 
         #[cfg(windows)]
         {
             poller.delete(self.pty.reader.as_socket())?;
             poller.delete(self.pty.writer.as_socket())?;
+
+            poller.delete(self.signal.as_socket())?;
         }
 
         Ok(())
@@ -221,28 +220,8 @@ impl Pty {
                 .request_pty("xterm-256color", PtySize::default(), None, None)
                 .await?;
 
-            #[cfg(unix)]
-            {
-                // Prepare signal handling before spawning child.
-                let (signals, sig_id) = {
-                    let (sender, recv) = UnixStream::pair()?;
-
-                    // Register the recv end of the pipe for SIGCHLD.
-                    let sig_id = pipe::register(consts::SIGCHLD, sender)?;
-                    recv.set_nonblocking(true)?;
-                    (recv, sig_id)
-                };
-
-                Ok(Pty {
-                    pty,
-                    child,
-                    signals,
-                    sig_id,
-                })
-            }
-
-            #[cfg(windows)]
-            Ok(Pty { pty, child })
+            let signal = tcp_signal()?;
+            Ok(Pty { pty, child, signal })
         })
     }
 }
@@ -255,4 +234,9 @@ pub struct SshOptions {
     pub port: Option<u16>,
     pub user: Option<String>,
     pub password: Option<String>,
+}
+
+fn tcp_signal() -> std::io::Result<TcpStream> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    TcpStream::connect(listener.local_addr()?)
 }
