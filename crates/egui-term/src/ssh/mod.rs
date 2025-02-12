@@ -4,11 +4,12 @@ use alacritty_terminal::event::{OnResize, WindowSize};
 use alacritty_terminal::tty::{ChildEvent, EventedPty, EventedReadWrite};
 use anyhow::Context;
 use polling::{Event, PollMode, Poller};
+use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use tracing::{error, trace};
 use wezterm_ssh::{
-    Child, Config, FileDescriptor, MasterPty, PtySize, Session, SessionEvent, SshChildProcess,
-    SshPty,
+    Child, ChildKiller, Config, FileDescriptor, MasterPty, PtySize, Session, SessionEvent,
+    SshChildProcess, SshPty,
 };
 
 #[cfg(unix)]
@@ -22,11 +23,20 @@ use std::os::windows::io::{AsRawSocket, AsSocket};
 const PTY_READ_WRITE_TOKEN: usize = 0;
 #[cfg(windows)]
 const PTY_READ_WRITE_TOKEN: usize = 2;
+const PTY_CHILD_EVENT_TOKEN: usize = 1;
 
 #[derive(Debug)]
 pub struct Pty {
     pub pty: SshPty,
     pub child: SshChildProcess,
+    pub signal: TcpStream,
+}
+
+impl Drop for Pty {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
 }
 
 impl EventedPty for Pty {
@@ -55,17 +65,30 @@ impl EventedReadWrite for Pty {
         interest.key = PTY_READ_WRITE_TOKEN;
         let _ = self.pty.reader.set_non_blocking(true);
         let _ = self.pty.writer.set_non_blocking(true);
+        let _ = self.signal.set_nonblocking(true);
 
         #[cfg(unix)]
         {
             poller.add_with_mode(self.pty.reader.as_raw_fd(), interest, mode)?;
             poller.add_with_mode(self.pty.writer.as_raw_fd(), interest, mode)?;
+
+            poller.add_with_mode(
+                self.signal.as_raw_fd(),
+                Event::readable(PTY_CHILD_EVENT_TOKEN),
+                PollMode::Level,
+            )?;
         }
 
         #[cfg(windows)]
         {
             poller.add_with_mode(self.pty.reader.as_raw_socket(), interest, mode)?;
             poller.add_with_mode(self.pty.writer.as_raw_socket(), interest, mode)?;
+
+            poller.add_with_mode(
+                self.signal.as_raw_socket(),
+                Event::readable(crate::ssh::PTY_CHILD_EVENT_TOKEN),
+                PollMode::Level,
+            )?;
         }
 
         Ok(())
@@ -83,12 +106,24 @@ impl EventedReadWrite for Pty {
         {
             poller.modify_with_mode(self.pty.reader.as_fd(), interest, mode)?;
             poller.modify_with_mode(self.pty.writer.as_fd(), interest, mode)?;
+
+            poller.modify_with_mode(
+                self.signal.as_fd(),
+                Event::readable(PTY_CHILD_EVENT_TOKEN),
+                PollMode::Level,
+            )?;
         }
 
         #[cfg(windows)]
         {
             poller.modify_with_mode(self.pty.reader.as_socket(), interest, mode)?;
             poller.modify_with_mode(self.pty.writer.as_socket(), interest, mode)?;
+
+            poller.modify_with_mode(
+                self.signal.as_socket(),
+                Event::readable(crate::ssh::PTY_CHILD_EVENT_TOKEN),
+                PollMode::Level,
+            )?;
         }
 
         Ok(())
@@ -99,12 +134,16 @@ impl EventedReadWrite for Pty {
         {
             poller.delete(self.pty.reader.as_fd())?;
             poller.delete(self.pty.writer.as_fd())?;
+
+            poller.delete(self.signal.as_fd())?;
         }
 
         #[cfg(windows)]
         {
             poller.delete(self.pty.reader.as_socket())?;
             poller.delete(self.pty.writer.as_socket())?;
+
+            poller.delete(self.signal.as_socket())?;
         }
 
         Ok(())
@@ -179,31 +218,24 @@ impl Pty {
             let (pty, child) = session
                 .request_pty("xterm-256color", PtySize::default(), None, None)
                 .await?;
-            Ok(Pty { pty, child })
+
+            let signal = tcp_signal()?;
+            Ok(Pty { pty, child, signal })
         })
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SshOptions {
+    pub group: String,
+    pub name: String,
     pub host: String,
     pub port: Option<u16>,
     pub user: Option<String>,
     pub password: Option<String>,
 }
 
-impl SshOptions {
-    pub fn new(
-        host: String,
-        port: Option<u16>,
-        user: Option<String>,
-        password: Option<String>,
-    ) -> Self {
-        Self {
-            host,
-            port,
-            user,
-            password,
-        }
-    }
+fn tcp_signal() -> std::io::Result<TcpStream> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    TcpStream::connect(listener.local_addr()?)
 }

@@ -26,6 +26,10 @@ An open-source, cross-platform SSH session manager powered by <a href="https://g
     <br />
 </div>
 
+<div align="center">
+    <img src="nxshell/assets/imgs/nxshell.png" alt="nxshell" height="500" style="border-radius: 16px;" />
+</div>
+
 ### Features ❇️
 
 - [x] Cross-platforms

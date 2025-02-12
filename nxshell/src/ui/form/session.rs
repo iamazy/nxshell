@@ -116,6 +116,8 @@ impl NxShell {
     fn submit_session(&mut self, ctx: &Context, session: &mut SessionState) -> Result<(), NxError> {
         let typ = TermType::Ssh {
             options: SshOptions {
+                group: session.group.to_string(),
+                name: session.name.to_string(),
                 host: session.host.to_string(),
                 port: Some(session.port),
                 user: Some(session.username.to_string()),

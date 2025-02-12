@@ -2,7 +2,7 @@ use alacritty_terminal::vte::ansi::{self, NamedColor};
 use egui::Color32;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ColorPalette {
     pub foreground: String,
     pub background: String,
@@ -71,7 +71,7 @@ impl Default for ColorPalette {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TerminalTheme {
     palette: Box<ColorPalette>,
     ansi256_colors: HashMap<u8, Color32>,

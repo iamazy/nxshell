@@ -158,24 +158,16 @@ impl eframe::App for NxShell {
 
 impl NxShell {
     fn recv_event(&mut self) {
-        if let Ok((tab_id, event)) = self.command_receiver.try_recv() {
-            match event {
-                PtyEvent::Exit => {
-                    let mut index: Option<(SurfaceIndex, NodeIndex, TabIndex)> = None;
-                    for ((surface, node), tab) in self.dock_state.iter_all_tabs() {
-                        if tab.id() == tab_id {
-                            index = Some((surface, node, TabIndex(tab.id() as usize)));
-                            break;
-                        }
-                    }
-                    if let Some(index) = index {
-                        self.dock_state.remove_tab(index);
-                    }
+        if let Ok((tab_id, PtyEvent::Exit)) = self.command_receiver.try_recv() {
+            let mut index: Option<(SurfaceIndex, NodeIndex, TabIndex)> = None;
+            for (_, tab) in self.dock_state.iter_all_tabs() {
+                if tab.id() == tab_id {
+                    index = self.dock_state.find_tab(tab);
+                    break;
                 }
-                PtyEvent::Title(_title) => {
-                    // change tab title
-                }
-                _ => {}
+            }
+            if let Some(index) = index {
+                self.dock_state.remove_tab(index);
             }
         }
     }
@@ -192,6 +184,8 @@ impl NxShell {
             ctx.clone(),
             TermType::Ssh {
                 options: SshOptions {
+                    group: session.group,
+                    name: session.name,
                     host: session.host,
                     port: Some(session.port),
                     user: Some(session.username),

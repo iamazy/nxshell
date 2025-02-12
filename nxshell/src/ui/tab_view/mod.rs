@@ -5,7 +5,7 @@ use crate::app::{NxShell, NxShellOptions};
 use crate::consts::GLOBAL_COUNTER;
 use crate::ui::tab_view::session::SessionList;
 use copypasta::ClipboardContext;
-use egui::{Label, Sense, Ui};
+use egui::{Label, Response, Sense, Ui};
 use egui_dock::{DockArea, Style};
 use egui_term::{
     PtyEvent, TermType, Terminal, TerminalContext, TerminalOptions, TerminalTheme, TerminalView,
@@ -16,11 +16,13 @@ use std::sync::mpsc::Sender;
 use terminal::TerminalTab;
 use tracing::error;
 
+#[derive(PartialEq)]
 enum TabInner {
     Term(TerminalTab),
     SessionList(SessionList),
 }
 
+#[derive(PartialEq)]
 pub struct Tab {
     inner: TabInner,
     id: u64,
@@ -39,7 +41,9 @@ impl Tab {
         let id = GLOBAL_COUNTER.next();
 
         let terminal = match typ {
-            TermType::Ssh { options } => Terminal::new_ssh(id, ctx, options, command_sender)?,
+            TermType::Ssh { ref options } => {
+                Terminal::new_ssh(id, ctx, options.clone(), command_sender)?
+            }
             _ => Terminal::new_regular(id, ctx, my_home()?, command_sender)?,
         };
 
@@ -48,6 +52,7 @@ impl Tab {
             inner: TabInner::Term(TerminalTab {
                 terminal,
                 terminal_theme: TerminalTheme::default(),
+                term_type: typ,
             }),
         })
     }
@@ -73,7 +78,10 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
         match &mut tab.inner {
-            TabInner::Term(_) => format!("tab {}", tab.id).into(),
+            TabInner::Term(term) => match term.term_type {
+                TermType::Ssh { ref options } => options.name.to_owned().into(),
+                TermType::Regular { .. } => "local".into(),
+            },
             TabInner::SessionList(_) => "sessions".into(),
         }
     }
@@ -107,6 +115,20 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                     ui.label("Stroke color:");
                     ui.label("Background color:");
                 });
+            }
+        }
+    }
+
+    fn on_tab_button(&mut self, tab: &mut Self::Tab, response: &Response) {
+        if response.hovered() {
+            if let TabInner::Term(term) = &mut tab.inner {
+                if let TermType::Ssh { options } = &term.term_type {
+                    response.show_tooltip_text(format!(
+                        "{}:{}",
+                        options.host,
+                        options.port.unwrap_or(22)
+                    ));
+                }
             }
         }
     }

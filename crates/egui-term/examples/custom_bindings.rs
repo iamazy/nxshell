@@ -20,8 +20,7 @@ pub struct App {
 impl App {
     pub fn new(ctx: egui::Context) -> Self {
         let (pty_proxy_sender, pty_proxy_receiver) = std::sync::mpsc::channel();
-        let terminal_backend =
-            Terminal::new_regular(0, ctx, None, pty_proxy_sender.clone()).unwrap();
+        let terminal_backend = Terminal::new_regular(0, ctx, None, pty_proxy_sender).unwrap();
 
         let mut custom_terminal_bindings = vec![
             (
