@@ -4,7 +4,6 @@ use alacritty_terminal::event::{OnResize, WindowSize};
 use alacritty_terminal::tty::{ChildEvent, EventedPty, EventedReadWrite};
 use anyhow::Context;
 use polling::{Event, PollMode, Poller};
-use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use tracing::{error, trace};
