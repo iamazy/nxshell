@@ -75,10 +75,9 @@ jobs:
       #          cargo packager --release --target ${{ matrix.target }}
       - run: |
           cargo build --release
-          ls -all target/${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
-          path: target/release/nxshell*
+          path: target/${{ matrix.target }}/release/nxshell*
           name: nxshell-${{ matrix.os }}-${{ matrix.arch }}
           compression-level: 9
 
