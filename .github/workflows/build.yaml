@@ -75,6 +75,7 @@ jobs:
       #          cargo packager --release --target ${{ matrix.target }}
       - run: |
           cargo build --release
+          ls -all target
           ls -all target/release
       - uses: actions/upload-artifact@v4
         with:
