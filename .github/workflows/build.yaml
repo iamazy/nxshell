@@ -69,12 +69,14 @@ jobs:
       #      - name: Test
       #        run: cargo nextest run --no-fail-fast --all-features
       - run: cargo install catppuccin-whiskers
-      - name: Install rust packager
-        run: |
-          cargo install cargo-packager --locked
-          cargo packager --release --target ${{ matrix.target }}
+      #      - name: Install rust packager
+      #        run: |
+      #          cargo install cargo-packager --locked
+      #          cargo packager --release --target ${{ matrix.target }}
+      - run: cargo build --release
       - uses: actions/upload-artifact@v4
         with:
-          path: target/dist/*
+          path: target/release/nxshell*
           name: nxshell-${{ matrix.os }}-${{ matrix.arch }}
+          compression-level: 9
 
