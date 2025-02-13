@@ -1,0 +1,80 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  cross-build:
+    name: Build ${{ matrix.arch }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        include:
+          # Linux
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            arch: aarch64
+            target: aarch64-unknown-linux-gnu
+          # Windows
+          - os: windows-latest
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            arch: aarch64
+            target: aarch64-pc-windows-gnullvm
+          # MacOS
+          - os: macos-latest
+            arch: x86_64
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            arch: aarch64
+            target: aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: ${{ matrix.target }}
+      - name: Install cross-compilation tools
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          qemu: '9.2'
+          target: ${{ matrix.target }}
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-v1
+      - name: Setup Windows ARM64
+        uses: crazy-max/ghaction-chocolatey@v3
+        if: matrix.os == 'windows-latest' && matrix.arch == 'aarch64'
+        with:
+          args: install -y visualstudio2022-workload-vctools --params "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64"
+      - name: Check code format
+        run: cargo fmt --all -- --check
+      #      - uses: taiki-e/install-action@nextest
+      #      - name: Test
+      #        run: cargo nextest run --no-fail-fast --all-features
+      - run: cargo install catppuccin-whiskers
+      - name: Install rust packager
+        run: |
+          cargo install cargo-packager --locked
+          cargo packager --release --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          path: target/dist/*
+          name: nxshell-${{ matrix.os }}-${{ matrix.arch }}
+
