@@ -13,8 +13,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64, aarch64]
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
         include:
           # Linux
           - os: ubuntu-latest
