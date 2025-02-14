@@ -27,7 +27,7 @@ An open-source, cross-platform SSH session manager powered by <a href="https://g
 </div>
 
 <div align="center">
-    <img src="nxshell/assets/imgs/nxshell.png" alt="nxshell" height="500" style="border-radius: 16px;" />
+    <img src="nxshell/assets/imgs/screenshot.png" alt="nxshell" height="500" style="border-radius: 16px;" />
 </div>
 
 ### Features ❇️
@@ -47,6 +47,10 @@ An open-source, cross-platform SSH session manager powered by <a href="https://g
 - [ ] Terminal operation recorder
 - [ ] Autocompletion powered by AI
 - [ ] GPU accelerated
+
+### Release 🦀
+
+You can download the binary from the [artifacts page](https://github.com/iamazy/nxshell/actions)
 
 ### Acknowledgments ❤️
 

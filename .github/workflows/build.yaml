@@ -1,0 +1,73 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  cross-build:
+    name: Build ${{ matrix.arch }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux
+          - os: ubuntu-latest
+            name: linux
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            name: linux
+            arch: aarch64
+            target: aarch64-unknown-linux-gnu
+          # Windows
+          - os: windows-latest
+            name: windows
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+          # MacOS
+          - os: macos-latest
+            name: macos
+            arch: x86_64
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            name: macos
+            arch: aarch64
+            target: aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: ${{ matrix.target }}
+      - name: Install cross-compilation tools
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+          qemu: "9.2"
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-v1
+      - name: Check code format
+        run: cargo fmt --all -- --check
+      - run: cargo install catppuccin-whiskers
+      - run: |
+          cargo build --release
+      - uses: actions/upload-artifact@v4
+        with:
+          path: |
+            target/${{ matrix.target }}/release/nxshell*
+            !target/${{ matrix.target }}/release/*.d
+            !target/${{ matrix.target }}/release/*.pdb
+          name: nxshell-${{ matrix.name }}-${{ matrix.arch }}
+          compression-level: 9
