@@ -63,11 +63,11 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-v1
-      - name: Setup Windows ARM64
-        uses: crazy-max/ghaction-chocolatey@v3
-        if: matrix.name == 'windows' && matrix.arch == 'aarch64'
-        with:
-          args: install -y visualstudio2022-workload-vctools --params "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64"
+      # - name: Setup Windows ARM64
+      #  uses: crazy-max/ghaction-chocolatey@v3
+      #  if: matrix.name == 'windows' && matrix.arch == 'aarch64'
+      #  with:
+      #    args: install -y visualstudio2022-workload-vctools --params "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64"
       - name: Check code format
         run: cargo fmt --all -- --check
       #      - uses: taiki-e/install-action@nextest
