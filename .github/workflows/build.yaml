@@ -56,6 +56,7 @@ jobs:
         uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           qemu: '9.2'
+          wine: '9.22'
           target: ${{ matrix.target }}
       - uses: actions/cache@v3
         with:
@@ -87,6 +88,6 @@ jobs:
             target/${{ matrix.target }}/release/nxshell*
             !target/${{ matrix.target }}/release/*.d
             !target/${{ matrix.target }}/release/*.pdb
-          name: nxshell-${{ matrix.os }}-${{ matrix.arch }}
+          name: nxshell-${{ matrix.name }}-${{ matrix.arch }}
           compression-level: 9
 
