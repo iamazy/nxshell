@@ -48,6 +48,10 @@ An open-source, cross-platform SSH session manager powered by <a href="https://g
 - [ ] Autocompletion powered by AI
 - [ ] GPU accelerated
 
+### Release 🦀
+
+You can download the binary from the [artifacts page](https://github.com/iamazy/nxshell/actions)
+
 ### Acknowledgments ❤️
 
 - [egui_term](https://github.com/Harzu/egui_term): Terminal emulator widget powered by EGUI framework and alacritty
