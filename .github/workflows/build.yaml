@@ -55,9 +55,9 @@ jobs:
       - name: Install cross-compilation tools
         uses: taiki-e/setup-cross-toolchain-action@v1
         with:
+          target: ${{ matrix.target }}
           qemu: '9.2'
           wine: '9.22'
-          target: ${{ matrix.target }}
       - uses: actions/cache@v3
         with:
           path: |
