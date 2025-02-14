@@ -64,7 +64,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-v1
       - name: Setup Windows ARM64
         run: export OPENSSL_NO_VENDOR=1
-        if: ${{ matrix.name }} == 'windows' && ${{ matrix.arch }} == 'aarch64'
+        if: matrix.name == 'windows' && matrix.arch == 'aarch64'
       # - name: Setup Windows ARM64
       #  uses: crazy-max/ghaction-chocolatey@v3
       #  if: matrix.name == 'windows' && matrix.arch == 'aarch64'
