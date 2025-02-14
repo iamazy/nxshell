@@ -63,6 +63,7 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-v1
       - name: Setup Windows ARM64
+        run: date
         if: ${{ matrix.name }} == 'windows' && ${{ matrix.arch }} == 'aarch64'
         env:
           OPENSSL_NO_VENDOR: 1
