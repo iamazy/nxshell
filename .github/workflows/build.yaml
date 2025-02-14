@@ -28,7 +28,7 @@ jobs:
             name: windows
             arch: x86_64
             target: x86_64-pc-windows-msvc
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             name: windows
             arch: aarch64
             target: aarch64-pc-windows-gnullvm
@@ -55,7 +55,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
           qemu: '9.2'
-          wine: '9.22'
       - uses: actions/cache@v3
         with:
           path: |
