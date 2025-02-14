@@ -28,10 +28,10 @@ jobs:
             name: windows
             arch: x86_64
             target: x86_64-pc-windows-msvc
-          #- os: ubuntu-24.04
-          #  name: windows
-          #  arch: aarch64
-          #  target: aarch64-pc-windows-gnullvm
+          - os: ubuntu-24.04
+            name: windows
+            arch: aarch64
+            target: aarch64-pc-windows-gnullvm
           # MacOS
           - os: macos-latest
             name: macos
@@ -62,6 +62,10 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-v1
+      - name: Setup Windows ARM64
+        if: ${{ matrix.name }} == 'windows' && ${{ matrix.arch }} == 'aarch64'
+        env:
+          OPENSSL_NO_VENDOR: 1
       # - name: Setup Windows ARM64
       #  uses: crazy-max/ghaction-chocolatey@v3
       #  if: matrix.name == 'windows' && matrix.arch == 'aarch64'
