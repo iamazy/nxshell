@@ -2,9 +2,9 @@ name: Cross-Platform Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   cross-build:
@@ -54,7 +54,7 @@ jobs:
         uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
-          qemu: '9.2'
+          qemu: "9.2"
       - uses: actions/cache@v3
         with:
           path: |
@@ -65,21 +65,9 @@ jobs:
       - name: Setup Windows ARM64
         run: export OPENSSL_NO_VENDOR=1
         if: matrix.name == 'windows' && matrix.arch == 'aarch64'
-      # - name: Setup Windows ARM64
-      #  uses: crazy-max/ghaction-chocolatey@v3
-      #  if: matrix.name == 'windows' && matrix.arch == 'aarch64'
-      #  with:
-      #    args: install -y visualstudio2022-workload-vctools --params "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64"
       - name: Check code format
         run: cargo fmt --all -- --check
-      #      - uses: taiki-e/install-action@nextest
-      #      - name: Test
-      #        run: cargo nextest run --no-fail-fast --all-features
       - run: cargo install catppuccin-whiskers
-      #      - name: Install rust packager
-      #        run: |
-      #          cargo install cargo-packager --locked
-      #          cargo packager --release --target ${{ matrix.target }}
       - run: |
           echo ${OPENSSL_NO_VENDOR}
           cargo build --release
@@ -91,4 +79,3 @@ jobs:
             !target/${{ matrix.target }}/release/*.pdb
           name: nxshell-${{ matrix.name }}-${{ matrix.arch }}
           compression-level: 9
-
