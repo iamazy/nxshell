@@ -1,5 +1,8 @@
 name: Cross-Platform Build
 
+env:
+  AARCH64_PC_WINDOWS_GNULLVM_OPENSSL_NO_VENDOR: 1
+
 on:
   push:
     branches: [main]
