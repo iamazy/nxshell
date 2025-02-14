@@ -66,7 +66,7 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-v1
       - name: Setup Windows ARM64
-        run: sudo apt install -y libssl-dev
+        run: sudo apt install -y openssl libssl-dev
         if: matrix.name == 'windows' && matrix.arch == 'aarch64'
       - name: Check code format
         run: cargo fmt --all -- --check
