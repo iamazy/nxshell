@@ -87,6 +87,16 @@ impl NxShell {
             }
         }
     }
+
+    pub fn add_sessions_tab(&mut self) {
+        if self.dock_state.surfaces_count() == 0 {
+            self.dock_state = DockState::new(vec![]);
+        }
+        SHOW_DOCK_PANEL_ONCE.call_once(|| {
+            self.opts.show_dock_panel = true;
+        });
+        self.dock_state.push_to_focused_leaf(Tab::session_list());
+    }
 }
 
 fn window_menu(ui: &mut egui::Ui) {

@@ -1,18 +1,18 @@
+use std::fmt::Display;
+
 use crate::app::NxShell;
 use crate::db::Session;
 use crate::errors::{error_toast, NxError};
-use egui::emath::Numeric;
 use egui::{
-    Align2, CentralPanel, Context, Grid, Id, Layout, Order, TextBuffer, TextEdit, TopBottomPanel,
-    Window,
+    Align2, CentralPanel, ComboBox, Context, Grid, Id, Layout, Order, TextBuffer, TextEdit,
+    TopBottomPanel, Window,
 };
 use egui_form::garde::GardeReport;
 use egui_form::{Form, FormField};
-use egui_term::{SshOptions, TermType};
+use egui_term::{Authentication, SshOptions, TermType};
 use egui_toast::Toasts;
 use garde::Validate;
 use orion::aead::{seal, SecretKey};
-use std::ops::RangeInclusive;
 use tracing::error;
 
 #[derive(Debug, Clone, Validate)]
@@ -25,10 +25,28 @@ pub struct SessionState {
     pub host: String,
     #[garde(range(min = 1, max = 65535))]
     pub port: u16,
-    #[garde(length(min = 1, max = 256))]
+    #[garde(skip)]
+    pub auth_type: AuthType,
+    #[garde(skip)]
     pub username: String,
-    #[garde(length(min = 1, max = 256))]
-    pub password: String,
+    #[garde(skip)]
+    pub auth_data: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, Hash, PartialEq)]
+pub enum AuthType {
+    #[default]
+    Password,
+    PublicKey,
+}
+
+impl Display for AuthType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AuthType::Password => write!(f, "Password"),
+            AuthType::PublicKey => write!(f, "Public Key"),
+        }
+    }
 }
 
 impl Default for SessionState {
@@ -38,8 +56,9 @@ impl Default for SessionState {
             name: String::default(),
             host: String::default(),
             port: 22,
+            auth_type: AuthType::default(),
             username: String::default(),
-            password: String::default(),
+            auth_data: String::default(),
         }
     }
 }
@@ -114,20 +133,26 @@ impl NxShell {
     }
 
     fn submit_session(&mut self, ctx: &Context, session: &mut SessionState) -> Result<(), NxError> {
+        let auth = match session.auth_type {
+            AuthType::Password => Authentication::Password(
+                session.username.to_string(),
+                session.auth_data.to_string(),
+            ),
+            AuthType::PublicKey => Authentication::PublicKey(session.auth_data.to_string()),
+        };
         let typ = TermType::Ssh {
             options: SshOptions {
                 group: session.group.to_string(),
                 name: session.name.to_string(),
                 host: session.host.to_string(),
                 port: Some(session.port),
-                user: Some(session.username.to_string()),
-                password: Some(session.password.to_string()),
+                auth: Some(auth),
             },
         };
         self.add_shell_tab(ctx.clone(), typ)?;
 
         let secret_key = SecretKey::generate(32)?; // 32字节密钥
-        let secret_data = seal(&secret_key, session.password.as_bytes())?;
+        let secret_data = seal(&secret_key, session.auth_data.as_bytes())?;
 
         self.db.insert_session(Session {
             group: session.group.to_string(),
@@ -157,13 +182,52 @@ fn ssh_form(ui: &mut egui::Ui, form: &mut Form<GardeReport>, session: &mut Sessi
             // name
             form_text_edit(ui, form, "Name:", &mut session.name, false);
             // host
-            form_text_edit(ui, form, "Host:", &mut session.host, false);
-            // port
-            form_drag_value(ui, form, "Port:", &mut session.port, 1..=65535);
-            // username
-            form_text_edit(ui, form, "Username:", &mut session.username, false);
-            // password
-            form_text_edit(ui, form, "Password:", &mut session.password, true);
+            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label("Host:");
+            });
+            ui.vertical_centered(|ui| {
+                ui.horizontal_centered(|ui| {
+                    FormField::new(form, "host").ui(
+                        ui,
+                        TextEdit::singleline(&mut session.host)
+                            .char_limit(15)
+                            .desired_width(150.),
+                    );
+                    FormField::new(form, "port").ui(
+                        ui,
+                        egui::DragValue::new(&mut session.port)
+                            .speed(1.)
+                            .range(1..=65535),
+                    );
+                });
+            });
+            ui.end_row();
+
+            // auth type
+            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label("Auth Type:");
+            });
+            ComboBox::from_id_salt(session.auth_type)
+                .selected_text(session.auth_type.to_string())
+                .width(160.)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut session.auth_type, AuthType::Password, "Password");
+                    ui.selectable_value(&mut session.auth_type, AuthType::PublicKey, "Public Key");
+                });
+            ui.end_row();
+
+            match session.auth_type {
+                AuthType::Password => {
+                    // username
+                    form_text_edit(ui, form, "Username:", &mut session.username, false);
+                    // password
+                    form_text_edit(ui, form, "Password:", &mut session.auth_data, true);
+                }
+                AuthType::PublicKey => {
+                    // public key
+                    form_text_edit(ui, form, "Public Key:", &mut session.auth_data, false);
+                }
+            }
         });
 }
 
@@ -179,20 +243,5 @@ fn form_text_edit(
     });
     FormField::new(form, label.trim_end_matches(':').to_lowercase())
         .ui(ui, TextEdit::singleline(text).password(is_password));
-    ui.end_row();
-}
-
-fn form_drag_value<Num: Numeric>(
-    ui: &mut egui::Ui,
-    form: &mut Form<GardeReport>,
-    label: &str,
-    value: &mut Num,
-    range: RangeInclusive<Num>,
-) {
-    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-        ui.label(label);
-    });
-    FormField::new(form, label.trim_end_matches(':').to_lowercase())
-        .ui(ui, egui::DragValue::new(value).speed(1.).range(range));
     ui.end_row();
 }

@@ -13,6 +13,6 @@ pub use alacritty::{PtyEvent, TermType, Terminal, TerminalContext};
 pub use alacritty_terminal::term::TermMode;
 pub use bindings::{Binding, BindingAction, InputKind, KeyboardBinding};
 pub use font::{FontSettings, TerminalFont};
-pub use ssh::SshOptions;
+pub use ssh::{Authentication, SshOptions};
 pub use theme::{ColorPalette, TerminalTheme};
 pub use view::{TerminalOptions, TerminalView};
