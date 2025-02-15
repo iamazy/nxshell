@@ -52,7 +52,7 @@ impl Display for AuthType {
 impl From<u16> for AuthType {
     fn from(value: u16) -> Self {
         match value {
-            1 => AuthType::Password,
+            0 => AuthType::Password,
             _ => AuthType::PublicKey,
         }
     }

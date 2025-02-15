@@ -1,13 +1,17 @@
 use crate::app::NxShell;
 use crate::consts::{REPOSITORY_URL, SHOW_DOCK_PANEL_ONCE};
+use crate::db::Session;
 use crate::errors::NxError;
 use crate::ui::tab_view::Tab;
 use egui::{Button, Checkbox, Modifiers};
 use egui_dock::DockState;
-use egui_term::TermType;
+use egui_term::{Authentication, SshOptions, TermType};
+use orion::aead::{open as orion_open, SecretKey};
 use std::env;
 use std::process::Command;
 use tracing::error;
+
+use super::form::AuthType;
 
 const BTN_WIDTH: f32 = 200.0;
 
@@ -86,6 +90,36 @@ impl NxShell {
                 Err(NxError::Plain(err.to_string()))
             }
         }
+    }
+
+    pub fn add_shell_tab_with_secret(
+        &mut self,
+        ctx: &egui::Context,
+        session: Session,
+    ) -> Result<(), NxError> {
+        let auth = match AuthType::from(session.auth_type) {
+            AuthType::Password => {
+                let key = SecretKey::from_slice(&session.secret_key)?;
+                let auth_data = orion_open(&key, &session.secret_data)?;
+                let auth_data = String::from_utf8(auth_data)?;
+
+                Authentication::Password(session.username, auth_data)
+            }
+            AuthType::PublicKey => Authentication::PublicKey,
+        };
+
+        self.add_shell_tab(
+            ctx.clone(),
+            TermType::Ssh {
+                options: SshOptions {
+                    group: session.group,
+                    name: session.name,
+                    host: session.host,
+                    port: Some(session.port),
+                    auth,
+                },
+            },
+        )
     }
 
     pub fn add_sessions_tab(&mut self) {
