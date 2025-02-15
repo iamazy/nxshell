@@ -26,8 +26,8 @@ impl NxShell {
     }
 
     fn session_menu(&mut self, ui: &mut egui::Ui) {
-        let new_session_shortcut = egui::KeyboardShortcut::new(Modifiers::CTRL, egui::Key::N);
-        if ui.input_mut(|i| i.consume_shortcut(&new_session_shortcut)) {
+        let new_term_shortcut = egui::KeyboardShortcut::new(Modifiers::CTRL, egui::Key::N);
+        if ui.input_mut(|i| i.consume_shortcut(&new_term_shortcut)) {
             let _ = self.add_shell_tab(
                 ui.ctx().clone(),
                 TermType::Regular {
@@ -36,12 +36,23 @@ impl NxShell {
             );
         }
         ui.menu_button("Session", |ui| {
-            let new_session_shortcut = ui.ctx().format_shortcut(&new_session_shortcut);
-            let new_session_btn = Button::new("New Session")
-                .min_size((BTN_WIDTH, 0.).into())
-                .shortcut_text(new_session_shortcut);
+            let new_session_btn = Button::new("New Session").min_size((BTN_WIDTH, 0.).into());
             if ui.add(new_session_btn).clicked() {
                 *self.opts.show_add_session_modal.borrow_mut() = true;
+                ui.close_menu();
+            }
+            let new_term_shortcut = ui.ctx().format_shortcut(&new_term_shortcut);
+            let new_term_btn = Button::new("New Terminal")
+                .min_size((BTN_WIDTH, 0.).into())
+                .shortcut_text(new_term_shortcut);
+            if ui.add(new_term_btn).clicked() {
+                let _ = self.add_shell_tab(
+                    ui.ctx().clone(),
+                    TermType::Regular {
+                        working_directory: None,
+                    },
+                );
+                ui.close_menu();
             }
             ui.separator();
             if ui.button("Quit").clicked() {
@@ -75,6 +86,16 @@ impl NxShell {
                 Err(NxError::Plain(err.to_string()))
             }
         }
+    }
+
+    pub fn add_sessions_tab(&mut self) {
+        if self.dock_state.surfaces_count() == 0 {
+            self.dock_state = DockState::new(vec![]);
+        }
+        SHOW_DOCK_PANEL_ONCE.call_once(|| {
+            self.opts.show_dock_panel = true;
+        });
+        self.dock_state.push_to_focused_leaf(Tab::session_list());
     }
 }
 

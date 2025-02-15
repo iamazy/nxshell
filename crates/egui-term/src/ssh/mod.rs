@@ -172,7 +172,7 @@ impl OnResize for Pty {
 }
 
 impl Pty {
-    pub fn new(mut opts: SshOptions) -> Result<Self, TermError> {
+    pub fn new(opts: SshOptions) -> Result<Self, TermError> {
         let mut config = Config::new();
         config.add_default_config_files();
 
@@ -180,9 +180,17 @@ impl Pty {
         let mut config = config.for_host(opts.host);
         config.insert("port".to_string(), port.to_string());
 
-        if let Some(user) = opts.user.take() {
-            config.insert("user".to_string(), user);
-        }
+        let mut auth_data = match opts.auth {
+            Some(Authentication::Password(user, password)) => {
+                config.insert("user".to_string(), user);
+                Some(password)
+            }
+            Some(Authentication::PublicKey(public_key)) => {
+                config.insert("identityfile".to_string(), public_key);
+                None
+            }
+            _ => None,
+        };
         smol::block_on(async move {
             let (session, events) = Session::connect(config)?;
 
@@ -199,8 +207,8 @@ impl Pty {
                     SessionEvent::Authenticate(auth) => {
                         if auth.prompts.is_empty() {
                             auth.answer(vec![]).await?;
-                        } else if let Some(password) = opts.password.take() {
-                            auth.answer(vec![password]).await?;
+                        } else if let Some(auth_data) = auth_data.take() {
+                            auth.answer(vec![auth_data]).await?;
                         }
                     }
                     SessionEvent::HostVerificationFailed(failed) => {
@@ -231,8 +239,13 @@ pub struct SshOptions {
     pub name: String,
     pub host: String,
     pub port: Option<u16>,
-    pub user: Option<String>,
-    pub password: Option<String>,
+    pub auth: Option<Authentication>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Authentication {
+    Password(String, String),
+    PublicKey(String),
 }
 
 fn tcp_signal() -> std::io::Result<TcpStream> {
