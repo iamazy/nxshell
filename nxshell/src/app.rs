@@ -1,12 +1,12 @@
 use crate::db::{DbConn, Session};
 use crate::errors::{error_toast, NxError};
-use crate::ui::form::NxStateManager;
+use crate::ui::form::{AuthType, NxStateManager};
 use crate::ui::tab_view::Tab;
 use copypasta::ClipboardContext;
 use eframe::{egui, NativeOptions};
 use egui::{Align2, CollapsingHeader, FontData, FontId, Id};
 use egui_dock::{DockState, NodeIndex, SurfaceIndex, TabIndex};
-use egui_term::{FontSettings, PtyEvent, SshOptions, TermType, TerminalFont};
+use egui_term::{Authentication, FontSettings, PtyEvent, SshOptions, TermType, TerminalFont};
 use egui_theme_switch::global_theme_switch;
 use egui_toast::Toasts;
 use orion::aead::{open, SecretKey};
@@ -63,6 +63,7 @@ impl NxShell {
         let db = DbConn::open()?;
         let state_manager = NxStateManager {
             sessions: Some(db.find_all_sessions()?),
+            ..Default::default()
         };
         Ok(Self {
             command_sender,
@@ -207,8 +208,16 @@ impl NxShell {
         session: Session,
     ) -> Result<(), NxError> {
         let key = SecretKey::from_slice(&session.secret_key)?;
-        let password = open(&key, &session.secret_data)?;
-        let password = String::from_utf8(password)?;
+
+        let auth_data = open(&key, &session.secret_data)?;
+        let auth_data = String::from_utf8(auth_data)?;
+
+        let auth = match AuthType::from(session.auth_type) {
+            AuthType::Password => Some(Authentication::Password(session.username, auth_data)),
+            AuthType::PublicKey => Some(Authentication::PublicKey(auth_data)),
+            AuthType::None => None,
+        };
+
         self.add_shell_tab(
             ctx.clone(),
             TermType::Ssh {
@@ -217,10 +226,7 @@ impl NxShell {
                     name: session.name,
                     host: session.host,
                     port: Some(session.port),
-                    auth: Some(egui_term::Authentication::Password(
-                        session.username,
-                        password,
-                    )),
+                    auth,
                 },
             },
         )

@@ -1,11 +1,9 @@
-use std::fmt::Display;
-
 use crate::app::NxShell;
 use crate::db::Session;
 use crate::errors::{error_toast, NxError};
 use egui::{
-    Align2, CentralPanel, ComboBox, Context, Grid, Id, Layout, Order, TextBuffer, TextEdit,
-    TopBottomPanel, Window,
+    Align2, CentralPanel, ComboBox, Context, Grid, Id, Layout, Order, TextEdit, TopBottomPanel,
+    Window,
 };
 use egui_form::garde::GardeReport;
 use egui_form::{Form, FormField};
@@ -13,6 +11,7 @@ use egui_term::{Authentication, SshOptions, TermType};
 use egui_toast::Toasts;
 use garde::Validate;
 use orion::aead::{seal, SecretKey};
+use std::fmt::Display;
 use tracing::error;
 
 #[derive(Debug, Clone, Validate)]
@@ -29,15 +28,17 @@ pub struct SessionState {
     pub auth_type: AuthType,
     #[garde(skip)]
     pub username: String,
-    #[garde(skip)]
+    #[garde(length(min = 1))]
     pub auth_data: String,
 }
 
+#[repr(u16)]
 #[derive(Debug, Clone, Copy, Default, Hash, PartialEq)]
 pub enum AuthType {
     #[default]
-    Password,
-    PublicKey,
+    None = 0,
+    Password = 1,
+    PublicKey = 2,
 }
 
 impl Display for AuthType {
@@ -45,6 +46,17 @@ impl Display for AuthType {
         match self {
             AuthType::Password => write!(f, "Password"),
             AuthType::PublicKey => write!(f, "Public Key"),
+            AuthType::None => write!(f, "None"),
+        }
+    }
+}
+
+impl From<u16> for AuthType {
+    fn from(value: u16) -> Self {
+        match value {
+            1 => AuthType::Password,
+            2 => AuthType::PublicKey,
+            _ => AuthType::None,
         }
     }
 }
@@ -119,7 +131,7 @@ impl NxShell {
                     ui.horizontal(|ui| {
                         ui.add_space(20.);
 
-                        ssh_form(ui, &mut form, &mut session_state);
+                        self.ssh_form(ui, &mut form, &mut session_state);
                     });
                 });
             });
@@ -134,11 +146,12 @@ impl NxShell {
 
     fn submit_session(&mut self, ctx: &Context, session: &mut SessionState) -> Result<(), NxError> {
         let auth = match session.auth_type {
-            AuthType::Password => Authentication::Password(
+            AuthType::Password => Some(Authentication::Password(
                 session.username.to_string(),
                 session.auth_data.to_string(),
-            ),
-            AuthType::PublicKey => Authentication::PublicKey(session.auth_data.to_string()),
+            )),
+            AuthType::PublicKey => Some(Authentication::PublicKey(session.auth_data.to_string())),
+            AuthType::None => None,
         };
         let typ = TermType::Ssh {
             options: SshOptions {
@@ -146,7 +159,7 @@ impl NxShell {
                 name: session.name.to_string(),
                 host: session.host.to_string(),
                 port: Some(session.port),
-                auth: Some(auth),
+                auth,
             },
         };
         self.add_shell_tab(ctx.clone(), typ)?;
@@ -159,6 +172,7 @@ impl NxShell {
             name: session.name.to_string(),
             host: session.host.to_string(),
             port: session.port,
+            auth_type: session.auth_type as u16,
             username: session.username.to_string(),
             secret_data,
             secret_key: secret_key.unprotected_as_bytes().to_vec(),
@@ -170,78 +184,114 @@ impl NxShell {
         }
         Ok(())
     }
-}
 
-fn ssh_form(ui: &mut egui::Ui, form: &mut Form<GardeReport>, session: &mut SessionState) {
-    Grid::new("ssh_form_grid")
-        .num_columns(2)
-        .spacing([10.0, 8.0])
-        .show(ui, |ui| {
-            // group
-            form_text_edit(ui, form, "Group:", &mut session.group, false);
-            // name
-            form_text_edit(ui, form, "Name:", &mut session.name, false);
-            // host
-            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label("Host:");
-            });
-            ui.vertical_centered(|ui| {
-                ui.horizontal_centered(|ui| {
-                    FormField::new(form, "host").ui(
-                        ui,
-                        TextEdit::singleline(&mut session.host)
-                            .char_limit(15)
-                            .desired_width(150.),
-                    );
-                    FormField::new(form, "port").ui(
-                        ui,
-                        egui::DragValue::new(&mut session.port)
-                            .speed(1.)
-                            .range(1..=65535),
-                    );
+    fn ssh_form(
+        &mut self,
+        ui: &mut egui::Ui,
+        form: &mut Form<GardeReport>,
+        session: &mut SessionState,
+    ) {
+        Grid::new("ssh_form_grid")
+            .num_columns(2)
+            .spacing([10.0, 15.0])
+            .show(ui, |ui| {
+                // group
+                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label("Group:");
                 });
-            });
-            ui.end_row();
+                FormField::new(form, "group").ui(ui, TextEdit::singleline(&mut session.group));
+                ui.end_row();
 
-            // auth type
-            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label("Auth Type:");
-            });
-            ComboBox::from_id_salt(session.auth_type)
-                .selected_text(session.auth_type.to_string())
-                .width(160.)
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut session.auth_type, AuthType::Password, "Password");
-                    ui.selectable_value(&mut session.auth_type, AuthType::PublicKey, "Public Key");
+                // name
+                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label("Name:");
                 });
-            ui.end_row();
+                FormField::new(form, "name").ui(ui, TextEdit::singleline(&mut session.name));
+                ui.end_row();
 
-            match session.auth_type {
-                AuthType::Password => {
-                    // username
-                    form_text_edit(ui, form, "Username:", &mut session.username, false);
-                    // password
-                    form_text_edit(ui, form, "Password:", &mut session.auth_data, true);
-                }
-                AuthType::PublicKey => {
-                    // public key
-                    form_text_edit(ui, form, "Public Key:", &mut session.auth_data, false);
-                }
-            }
-        });
-}
+                // host
+                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label("Host:");
+                });
+                ui.vertical_centered(|ui| {
+                    ui.horizontal_centered(|ui| {
+                        FormField::new(form, "host").ui(
+                            ui,
+                            TextEdit::singleline(&mut session.host)
+                                .char_limit(15)
+                                .desired_width(150.),
+                        );
+                        FormField::new(form, "port").ui(
+                            ui,
+                            egui::DragValue::new(&mut session.port)
+                                .speed(1.)
+                                .range(1..=65535),
+                        );
+                    });
+                });
 
-fn form_text_edit(
-    ui: &mut egui::Ui,
-    form: &mut Form<GardeReport>,
-    label: &str,
-    text: &mut dyn TextBuffer,
-    is_password: bool,
-) {
-    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-        ui.label(label);
-    });
-    FormField::new(form, label.trim_end_matches(':').to_lowercase())
-        .ui(ui, TextEdit::singleline(text).password(is_password));
-    ui.end_row();
+                ui.end_row();
+
+                // auth type
+                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label("Auth Type:");
+                });
+                ComboBox::from_id_salt(session.auth_type)
+                    .selected_text(session.auth_type.to_string())
+                    .width(160.)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut session.auth_type, AuthType::Password, "Password");
+                        ui.selectable_value(
+                            &mut session.auth_type,
+                            AuthType::PublicKey,
+                            "Public Key",
+                        );
+                    });
+                ui.end_row();
+
+                // FIXME: Why is the line height smaller in this row?
+                match session.auth_type {
+                    AuthType::Password => {
+                        // username
+                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label("Username:");
+                        });
+                        FormField::new(form, "username")
+                            .ui(ui, TextEdit::singleline(&mut session.username));
+                        ui.end_row();
+
+                        // password
+                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label("Password:");
+                        });
+                        FormField::new(form, "auth_data").ui(
+                            ui,
+                            TextEdit::singleline(&mut session.auth_data).password(true),
+                        );
+                        ui.end_row();
+                    }
+                    AuthType::PublicKey => {
+                        // public key
+                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label("Public Key:");
+                        });
+                        let response = FormField::new(form, "auth_data")
+                            .ui(ui, TextEdit::singleline(&mut session.auth_data));
+                        let response = response.on_hover_text(session.auth_data.to_string());
+                        if response.clicked() || response.gained_focus() {
+                            self.state_manager.file_dialog.pick_file();
+                        }
+                        self.state_manager.file_dialog.update(ui.ctx());
+
+                        if let Some(path) = self.state_manager.file_dialog.take_picked() {
+                            if let Some(path) = path.to_str() {
+                                session.auth_data = path.to_string();
+                            }
+                        }
+                        ui.end_row();
+                    }
+                    AuthType::None => {}
+                }
+            });
+    }
 }
