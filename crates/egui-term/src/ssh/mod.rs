@@ -4,6 +4,7 @@ use alacritty_terminal::event::{OnResize, WindowSize};
 use alacritty_terminal::tty::{ChildEvent, EventedPty, EventedReadWrite};
 use anyhow::Context;
 use polling::{Event, PollMode, Poller};
+use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use tracing::{error, trace};
@@ -181,15 +182,11 @@ impl Pty {
         config.insert("port".to_string(), port.to_string());
 
         let mut auth_data = match opts.auth {
-            Some(Authentication::Password(user, password)) => {
+            Authentication::Password(user, password) => {
                 config.insert("user".to_string(), user);
                 Some(password)
             }
-            Some(Authentication::PublicKey(public_key)) => {
-                config.insert("identityfile".to_string(), public_key);
-                None
-            }
-            _ => None,
+            Authentication::PublicKey => None,
         };
         smol::block_on(async move {
             let (session, events) = Session::connect(config)?;
@@ -223,8 +220,13 @@ impl Pty {
                 }
             }
 
+            // FIXME: set in settings
+            let mut env = HashMap::new();
+            env.insert("LANG".to_string(), "zh_CN.utf8".to_string());
+            env.insert("LC_COLLATE".to_string(), "C".to_string());
+
             let (pty, child) = session
-                .request_pty("xterm-256color", PtySize::default(), None, None)
+                .request_pty("xterm-256color", PtySize::default(), None, Some(env))
                 .await?;
 
             let signal = tcp_signal()?;
@@ -239,13 +241,13 @@ pub struct SshOptions {
     pub name: String,
     pub host: String,
     pub port: Option<u16>,
-    pub auth: Option<Authentication>,
+    pub auth: Authentication,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Authentication {
     Password(String, String),
-    PublicKey(String),
+    PublicKey,
 }
 
 fn tcp_signal() -> std::io::Result<TcpStream> {

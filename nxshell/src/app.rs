@@ -61,7 +61,6 @@ impl NxShell {
         let db = DbConn::open()?;
         let state_manager = NxStateManager {
             sessions: Some(db.find_all_sessions()?),
-            ..Default::default()
         };
         Ok(Self {
             command_sender,
@@ -205,15 +204,15 @@ impl NxShell {
         ctx: &egui::Context,
         session: Session,
     ) -> Result<(), NxError> {
-        let key = SecretKey::from_slice(&session.secret_key)?;
-
-        let auth_data = open(&key, &session.secret_data)?;
-        let auth_data = String::from_utf8(auth_data)?;
-
         let auth = match AuthType::from(session.auth_type) {
-            AuthType::Password => Some(Authentication::Password(session.username, auth_data)),
-            AuthType::PublicKey => Some(Authentication::PublicKey(auth_data)),
-            AuthType::None => None,
+            AuthType::Password => {
+                let key = SecretKey::from_slice(&session.secret_key)?;
+                let auth_data = open(&key, &session.secret_data)?;
+                let auth_data = String::from_utf8(auth_data)?;
+
+                Authentication::Password(session.username, auth_data)
+            }
+            AuthType::PublicKey => Authentication::PublicKey,
         };
 
         self.add_shell_tab(

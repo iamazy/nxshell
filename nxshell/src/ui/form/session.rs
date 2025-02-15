@@ -28,7 +28,7 @@ pub struct SessionState {
     pub auth_type: AuthType,
     #[garde(skip)]
     pub username: String,
-    #[garde(length(min = 1))]
+    #[garde(skip)]
     pub auth_data: String,
 }
 
@@ -36,9 +36,8 @@ pub struct SessionState {
 #[derive(Debug, Clone, Copy, Default, Hash, PartialEq)]
 pub enum AuthType {
     #[default]
-    None = 0,
-    Password = 1,
-    PublicKey = 2,
+    Password = 0,
+    PublicKey = 1,
 }
 
 impl Display for AuthType {
@@ -46,7 +45,6 @@ impl Display for AuthType {
         match self {
             AuthType::Password => write!(f, "Password"),
             AuthType::PublicKey => write!(f, "Public Key"),
-            AuthType::None => write!(f, "None"),
         }
     }
 }
@@ -55,8 +53,7 @@ impl From<u16> for AuthType {
     fn from(value: u16) -> Self {
         match value {
             1 => AuthType::Password,
-            2 => AuthType::PublicKey,
-            _ => AuthType::None,
+            _ => AuthType::PublicKey,
         }
     }
 }
@@ -145,13 +142,22 @@ impl NxShell {
     }
 
     fn submit_session(&mut self, ctx: &Context, session: &mut SessionState) -> Result<(), NxError> {
-        let auth = match session.auth_type {
-            AuthType::Password => Some(Authentication::Password(
-                session.username.to_string(),
-                session.auth_data.to_string(),
-            )),
-            AuthType::PublicKey => Some(Authentication::PublicKey(session.auth_data.to_string())),
-            AuthType::None => None,
+        let (auth, secret_key, secret_data) = match session.auth_type {
+            AuthType::Password => {
+                let secret_key = SecretKey::generate(32)?;
+                let secret_data = seal(&secret_key, session.auth_data.as_bytes())?;
+                let secret_key = secret_key.unprotected_as_bytes().to_vec();
+
+                (
+                    Authentication::Password(
+                        session.username.to_string(),
+                        session.auth_data.to_string(),
+                    ),
+                    secret_key,
+                    secret_data,
+                )
+            }
+            AuthType::PublicKey => (Authentication::PublicKey, vec![], vec![]),
         };
         let typ = TermType::Ssh {
             options: SshOptions {
@@ -164,9 +170,6 @@ impl NxShell {
         };
         self.add_shell_tab(ctx.clone(), typ)?;
 
-        let secret_key = SecretKey::generate(32)?; // 32字节密钥
-        let secret_data = seal(&secret_key, session.auth_data.as_bytes())?;
-
         self.db.insert_session(Session {
             group: session.group.to_string(),
             name: session.name.to_string(),
@@ -175,7 +178,7 @@ impl NxShell {
             auth_type: session.auth_type as u16,
             username: session.username.to_string(),
             secret_data,
-            secret_key: secret_key.unprotected_as_bytes().to_vec(),
+            secret_key,
             ..Default::default()
         })?;
 
@@ -250,47 +253,24 @@ impl NxShell {
                 ui.end_row();
 
                 // FIXME: Why is the line height smaller in this row?
-                match session.auth_type {
-                    AuthType::Password => {
-                        // username
-                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.label("Username:");
-                        });
-                        FormField::new(form, "username")
-                            .ui(ui, TextEdit::singleline(&mut session.username));
-                        ui.end_row();
+                if let AuthType::Password = session.auth_type {
+                    // username
+                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label("Username:");
+                    });
+                    FormField::new(form, "username")
+                        .ui(ui, TextEdit::singleline(&mut session.username));
+                    ui.end_row();
 
-                        // password
-                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.label("Password:");
-                        });
-                        FormField::new(form, "auth_data").ui(
-                            ui,
-                            TextEdit::singleline(&mut session.auth_data).password(true),
-                        );
-                        ui.end_row();
-                    }
-                    AuthType::PublicKey => {
-                        // public key
-                        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.label("Public Key:");
-                        });
-                        let response = FormField::new(form, "auth_data")
-                            .ui(ui, TextEdit::singleline(&mut session.auth_data));
-                        let response = response.on_hover_text(session.auth_data.to_string());
-                        if response.clicked() || response.gained_focus() {
-                            self.state_manager.file_dialog.pick_file();
-                        }
-                        self.state_manager.file_dialog.update(ui.ctx());
-
-                        if let Some(path) = self.state_manager.file_dialog.take_picked() {
-                            if let Some(path) = path.to_str() {
-                                session.auth_data = path.to_string();
-                            }
-                        }
-                        ui.end_row();
-                    }
-                    AuthType::None => {}
+                    // password
+                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label("Password:");
+                    });
+                    FormField::new(form, "auth_data").ui(
+                        ui,
+                        TextEdit::singleline(&mut session.auth_data).password(true),
+                    );
+                    ui.end_row();
                 }
             });
     }
