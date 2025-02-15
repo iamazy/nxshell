@@ -19,7 +19,6 @@ use std::sync::Arc;
 pub struct NxShellOptions {
     pub show_add_session_modal: Rc<RefCell<bool>>,
     pub show_dock_panel: bool,
-    pub show_sessions_panel: bool,
     pub multi_exec: bool,
     pub active_tab_id: Option<Id>,
     pub term_font: TerminalFont,
@@ -36,7 +35,6 @@ impl Default for NxShellOptions {
         Self {
             show_add_session_modal: Rc::new(RefCell::new(false)),
             show_dock_panel: false,
-            show_sessions_panel: true,
             active_tab_id: None,
             multi_exec: false,
             term_font: TerminalFont::new(font_setting),
@@ -115,9 +113,9 @@ impl eframe::App for NxShell {
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                         ui.label("Sessions");
                     });
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                        ui.label("Sessions");
-                    });
+                    // ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    //     ui.label("Sessions");
+                    // });
                 });
 
                 self.search_sessions(ui);

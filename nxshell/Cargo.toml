@@ -25,7 +25,7 @@ egui-term = { path = "../crates/egui-term" }
 egui_dock = { path = "../crates/egui-dock" }
 egui_extras = { workspace = true, features = ["all_loaders"] }
 egui-file-dialog.workspace = true
-egui_form = { path = "../crates/egui-form", features = ["validator_garde"] }
+egui_form = { workspace = true, features = ["validator_garde"] }
 egui-theme-switch = { path = "../crates/egui-theme-switch" }
 egui-toast = { path = "../crates/egui-toast" }
 garde = { workspace = true, features = ["full"] }
