@@ -68,7 +68,7 @@ impl Default for SessionState {
             name: String::default(),
             host: String::default(),
             port: 22,
-            auth_type: AuthType::default(),
+            auth_type: AuthType::Password,
             username: String::default(),
             auth_data: String::default(),
         }
