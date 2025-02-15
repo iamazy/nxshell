@@ -23,6 +23,7 @@ pub struct NxShellOptions {
     pub active_tab_id: Option<Id>,
     pub term_font: TerminalFont,
     pub term_font_size: f32,
+    pub session_key: String,
 }
 
 impl Default for NxShellOptions {
@@ -38,6 +39,7 @@ impl Default for NxShellOptions {
             multi_exec: false,
             term_font: TerminalFont::new(font_setting),
             term_font_size,
+            session_key: String::default(),
         }
     }
 }
@@ -107,36 +109,9 @@ impl eframe::App for NxShell {
             .width_range(200.0..=300.0)
             .show(ctx, |ui| {
                 ui.label("Sessions");
+                self.search_sessions(ui);
                 ui.separator();
-
-                if let Some(sessions) = self.state_manager.sessions.take() {
-                    for (group, sessions) in sessions.iter() {
-                        CollapsingHeader::new(group)
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                for session in sessions {
-                                    let response = ui.button(&session.name);
-                                    if response.double_clicked() {
-                                        match self.db.find_session(&session.group, &session.name) {
-                                            Ok(Some(session)) => {
-                                                if let Err(err) =
-                                                    self.add_shell_tab_with_secret(ctx, session)
-                                                {
-                                                    toasts.add(error_toast(err.to_string()));
-                                                }
-                                            }
-                                            Ok(None) => {}
-                                            Err(err) => {
-                                                toasts.add(error_toast(err.to_string()));
-                                            }
-                                        }
-                                    } else if response.secondary_clicked() {
-                                    }
-                                }
-                            });
-                    }
-                    self.state_manager.sessions = Some(sessions);
-                }
+                self.list_sessions(ctx, ui, &mut toasts);
             });
         egui::TopBottomPanel::bottom("main_bottom_panel").show(ctx, |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
@@ -153,6 +128,50 @@ impl eframe::App for NxShell {
         }
 
         toasts.show(ctx);
+    }
+}
+
+impl NxShell {
+    fn search_sessions(&mut self, ui: &mut egui::Ui) {
+        if ui
+            .text_edit_singleline(&mut self.opts.session_key)
+            .changed()
+        {
+            if let Ok(sessions) = self.db.find_sessions(&self.opts.session_key) {
+                self.state_manager.sessions = Some(sessions);
+            }
+        }
+    }
+
+    fn list_sessions(&mut self, ctx: &egui::Context, ui: &mut egui::Ui, toasts: &mut Toasts) {
+        if let Some(sessions) = self.state_manager.sessions.take() {
+            for (group, sessions) in sessions.iter() {
+                CollapsingHeader::new(group)
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        for session in sessions {
+                            let response = ui.button(&session.name);
+                            if response.double_clicked() {
+                                match self.db.find_session(&session.group, &session.name) {
+                                    Ok(Some(session)) => {
+                                        if let Err(err) =
+                                            self.add_shell_tab_with_secret(ctx, session)
+                                        {
+                                            toasts.add(error_toast(err.to_string()));
+                                        }
+                                    }
+                                    Ok(None) => {}
+                                    Err(err) => {
+                                        toasts.add(error_toast(err.to_string()));
+                                    }
+                                }
+                            } else if response.secondary_clicked() {
+                            }
+                        }
+                    });
+            }
+            self.state_manager.sessions = Some(sessions);
+        }
     }
 }
 

@@ -71,6 +71,37 @@ impl DbConn {
         Ok(session_groups)
     }
 
+    pub fn find_sessions(&self, key: &str) -> Result<IndexMap<String, Vec<Session>>> {
+        if key.is_empty() {
+            return self.find_all_sessions();
+        }
+        let mut stmt = self
+            .db
+            .prepare("SELECT id, group_name, name, host, port, username FROM session where group_name like ?1 or name like ?1")?;
+        let mut rows = stmt.query((format!("%{key}%"),))?;
+        let mut sessions = vec![];
+        while let Some(row) = rows.next()? {
+            sessions.push(Session {
+                id: row.get(0)?,
+                group: row.get(1)?,
+                name: row.get(2)?,
+                host: row.get(3)?,
+                port: row.get(4)?,
+                username: row.get(5)?,
+                ..Default::default()
+            });
+        }
+        let mut session_groups: IndexMap<String, Vec<Session>> =
+            IndexMap::with_capacity(sessions.len());
+        for session in sessions {
+            session_groups
+                .entry(session.group.clone())
+                .or_default()
+                .push(session);
+        }
+        Ok(session_groups)
+    }
+
     pub fn insert_session(&self, session: Session) -> Result<(), NxError> {
         let time = Local::now().timestamp_millis() as u64;
         self.db.execute(
