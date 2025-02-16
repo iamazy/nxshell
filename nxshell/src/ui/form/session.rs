@@ -20,7 +20,7 @@ pub struct SessionState {
     pub group: String,
     #[garde(length(min = 0, max = 256))]
     pub name: String,
-    #[garde(ip)]
+    #[garde(length(min = 1))]
     pub host: String,
     #[garde(range(min = 1, max = 65535))]
     pub port: u16,
@@ -37,14 +37,14 @@ pub struct SessionState {
 pub enum AuthType {
     #[default]
     Password = 0,
-    PublicKey = 1,
+    Config = 1,
 }
 
 impl Display for AuthType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AuthType::Password => write!(f, "Password"),
-            AuthType::PublicKey => write!(f, "Public Key"),
+            AuthType::Config => write!(f, "SSH Config"),
         }
     }
 }
@@ -53,7 +53,7 @@ impl From<u16> for AuthType {
     fn from(value: u16) -> Self {
         match value {
             0 => AuthType::Password,
-            _ => AuthType::PublicKey,
+            _ => AuthType::Config,
         }
     }
 }
@@ -144,6 +144,12 @@ impl NxShell {
     fn submit_session(&mut self, ctx: &Context, session: &mut SessionState) -> Result<(), NxError> {
         let (auth, secret_key, secret_data) = match session.auth_type {
             AuthType::Password => {
+                if session.username.trim().is_empty() || session.auth_data.trim().is_empty() {
+                    return Err(NxError::Plain(
+                        "`username` and `password` cannot be empty in `Password` mode".to_string(),
+                    ));
+                }
+
                 let secret_key = SecretKey::generate(32)?;
                 let secret_data = seal(&secret_key, session.auth_data.as_bytes())?;
                 let secret_key = secret_key.unprotected_as_bytes().to_vec();
@@ -157,7 +163,7 @@ impl NxShell {
                     secret_data,
                 )
             }
-            AuthType::PublicKey => (Authentication::PublicKey, vec![], vec![]),
+            AuthType::Config => (Authentication::Config, vec![], vec![]),
         };
         let typ = TermType::Ssh {
             options: SshOptions {
@@ -213,23 +219,36 @@ impl NxShell {
                 ui.end_row();
 
                 // host
+                let host_label = match session.auth_type {
+                    AuthType::Password => "Host:",
+                    AuthType::Config => "Host Alias:",
+                };
+
                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label("Host:");
+                    ui.label(host_label);
                 });
+
                 ui.vertical_centered(|ui| {
                     ui.horizontal_centered(|ui| {
-                        FormField::new(form, "host").ui(
-                            ui,
-                            TextEdit::singleline(&mut session.host)
-                                .char_limit(15)
-                                .desired_width(150.),
-                        );
-                        FormField::new(form, "port").ui(
-                            ui,
-                            egui::DragValue::new(&mut session.port)
-                                .speed(1.)
-                                .range(1..=65535),
-                        );
+                        let host_edit = TextEdit::singleline(&mut session.host);
+                        match session.auth_type {
+                            AuthType::Password => {
+                                FormField::new(form, "host")
+                                    .ui(ui, host_edit.char_limit(15).desired_width(150.));
+                            }
+                            AuthType::Config => {
+                                FormField::new(form, "host").ui(ui, host_edit);
+                            }
+                        }
+
+                        if let AuthType::Password = session.auth_type {
+                            FormField::new(form, "port").ui(
+                                ui,
+                                egui::DragValue::new(&mut session.port)
+                                    .speed(1.)
+                                    .range(1..=65535),
+                            );
+                        }
                     });
                 });
 
@@ -243,11 +262,15 @@ impl NxShell {
                     .selected_text(session.auth_type.to_string())
                     .width(160.)
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut session.auth_type, AuthType::Password, "Password");
                         ui.selectable_value(
                             &mut session.auth_type,
-                            AuthType::PublicKey,
-                            "Public Key",
+                            AuthType::Password,
+                            AuthType::Password.to_string(),
+                        );
+                        ui.selectable_value(
+                            &mut session.auth_type,
+                            AuthType::Config,
+                            AuthType::Config.to_string(),
                         );
                     });
                 ui.end_row();

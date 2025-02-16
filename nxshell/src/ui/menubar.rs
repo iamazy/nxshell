@@ -105,7 +105,7 @@ impl NxShell {
 
                 Authentication::Password(session.username, auth_data)
             }
-            AuthType::PublicKey => Authentication::PublicKey,
+            AuthType::Config => Authentication::Config,
         };
 
         self.add_shell_tab(

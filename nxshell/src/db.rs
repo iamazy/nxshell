@@ -48,7 +48,7 @@ impl DbConn {
     pub fn find_all_sessions(&self) -> Result<IndexMap<String, Vec<Session>>> {
         let mut stmt = self
             .db
-            .prepare("SELECT id, group_name, name, host, port, username FROM session")?;
+            .prepare("SELECT id, group_name, name, auth_type FROM session")?;
         let mut rows = stmt.query(())?;
         let mut sessions = vec![];
         while let Some(row) = rows.next()? {
@@ -56,9 +56,7 @@ impl DbConn {
                 id: row.get(0)?,
                 group: row.get(1)?,
                 name: row.get(2)?,
-                host: row.get(3)?,
-                port: row.get(4)?,
-                username: row.get(5)?,
+                auth_type: row.get(3)?,
                 ..Default::default()
             });
         }
@@ -79,7 +77,7 @@ impl DbConn {
         }
         let mut stmt = self
             .db
-            .prepare("SELECT id, group_name, name, host, port, username FROM session where group_name like ?1 or name like ?1")?;
+            .prepare("SELECT id, group_name, name, auth_type FROM session where group_name like ?1 or name like ?1")?;
         let mut rows = stmt.query((format!("%{key}%"),))?;
         let mut sessions = vec![];
         while let Some(row) = rows.next()? {
@@ -87,9 +85,7 @@ impl DbConn {
                 id: row.get(0)?,
                 group: row.get(1)?,
                 name: row.get(2)?,
-                host: row.get(3)?,
-                port: row.get(4)?,
-                username: row.get(5)?,
+                auth_type: row.get(3)?,
                 ..Default::default()
             });
         }

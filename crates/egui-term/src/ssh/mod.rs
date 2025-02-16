@@ -175,18 +175,22 @@ impl OnResize for Pty {
 impl Pty {
     pub fn new(opts: SshOptions) -> Result<Self, TermError> {
         let mut config = Config::new();
-        config.add_default_config_files();
 
-        let port = opts.port.unwrap_or(22);
-        let mut config = config.for_host(opts.host);
-        config.insert("port".to_string(), port.to_string());
-
-        let mut auth_data = match opts.auth {
+        let (mut auth_data, config) = match opts.auth {
             Authentication::Password(user, password) => {
+                let port = opts.port.unwrap_or(22);
+                let mut config = config.for_host(opts.host);
+
+                config.insert("port".to_string(), port.to_string());
                 config.insert("user".to_string(), user);
-                Some(password)
+                (Some(password), config)
             }
-            Authentication::PublicKey => None,
+            Authentication::Config => {
+                config.add_default_config_files();
+                let config = config.for_host(opts.host);
+
+                (None, config)
+            }
         };
         smol::block_on(async move {
             let (session, events) = Session::connect(config)?;
@@ -202,11 +206,19 @@ impl Pty {
                         verify.answer(true).await.context("send verify response")?;
                     }
                     SessionEvent::Authenticate(auth) => {
-                        if auth.prompts.is_empty() {
-                            auth.answer(vec![]).await?;
-                        } else if let Some(auth_data) = auth_data.take() {
-                            auth.answer(vec![auth_data]).await?;
+                        for a in auth.prompts.iter() {
+                            println!("prompt: {}", a.prompt);
                         }
+
+                        let mut answers = vec![];
+                        for prompt in auth.prompts.iter() {
+                            if prompt.prompt.contains("Password") {
+                                let answer = auth_data.take();
+                                answers.push(answer.unwrap_or_default());
+                            }
+                        }
+
+                        auth.answer(answers).await?;
                     }
                     SessionEvent::HostVerificationFailed(failed) => {
                         error!("host verification failed: {failed}");
@@ -247,7 +259,7 @@ pub struct SshOptions {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Authentication {
     Password(String, String),
-    PublicKey,
+    Config,
 }
 
 fn tcp_signal() -> std::io::Result<TcpStream> {

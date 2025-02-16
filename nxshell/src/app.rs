@@ -1,6 +1,6 @@
 use crate::db::DbConn;
 use crate::errors::{error_toast, NxError};
-use crate::ui::form::NxStateManager;
+use crate::ui::form::{AuthType, NxStateManager};
 use crate::ui::tab_view::Tab;
 use copypasta::ClipboardContext;
 use eframe::{egui, NativeOptions};
@@ -157,7 +157,11 @@ impl NxShell {
                     .default_open(true)
                     .show(ui, |ui| {
                         for session in sessions {
-                            let response = ui.button(&session.name);
+                            let icon = match AuthType::from(session.auth_type) {
+                                AuthType::Password => egui_phosphor::regular::NUMPAD,
+                                AuthType::Config => egui_phosphor::regular::FILE_CODE,
+                            };
+                            let response = ui.button(format!("{icon} {}", session.name));
                             if response.double_clicked() {
                                 match self.db.find_session(&session.group, &session.name) {
                                     Ok(Some(session)) => {
@@ -211,5 +215,9 @@ fn set_font(ctx: &egui::Context) {
         .entry(egui::FontFamily::Monospace)
         .or_default()
         .push(name.to_owned());
+
+    // add egui icon
+    egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
     ctx.set_fonts(fonts);
 }
