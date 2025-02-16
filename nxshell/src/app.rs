@@ -20,10 +20,24 @@ pub struct NxShellOptions {
     pub show_add_session_modal: Rc<RefCell<bool>>,
     pub show_dock_panel: bool,
     pub multi_exec: bool,
+    /// Id of active tab
+    ///
+    /// Its main purpose is to preserve the state of egui::Response::contains_pointer().
+    /// Its functions :
+    ///
+    /// 1. When the mouse cursor leaves the terminal, it still influences the state of the current
+    ///    terminal's selection.
+    /// 2. When it is None, all tabs lose focus, and you can iteract with the other UI components.
     pub active_tab_id: Option<Id>,
     pub term_font: TerminalFont,
     pub term_font_size: f32,
     pub session_filter: String,
+}
+
+impl NxShellOptions {
+    pub fn surrender_focus(&mut self) {
+        self.active_tab_id = None;
+    }
 }
 
 impl Default for NxShellOptions {
@@ -130,12 +144,13 @@ impl eframe::App for NxShell {
         });
 
         if *self.opts.show_add_session_modal.borrow() {
+            self.opts.surrender_focus();
             self.show_add_session_window(ctx, &mut toasts);
-        } else {
-            egui::CentralPanel::default().show(ctx, |_ui| {
-                self.tab_view(ctx);
-            });
         }
+
+        egui::CentralPanel::default().show(ctx, |_ui| {
+            self.tab_view(ctx);
+        });
 
         toasts.show(ctx);
     }
@@ -146,8 +161,7 @@ impl NxShell {
         let text_edit = TextEdit::singleline(&mut self.opts.session_filter);
         let response = ui.add(text_edit);
         if response.clicked() {
-            // gain ui focus
-            self.opts.active_tab_id = None;
+            self.opts.surrender_focus();
         } else if response.changed() {
             if let Ok(sessions) = self.db.find_sessions(&self.opts.session_filter) {
                 self.state_manager.sessions = Some(sessions);
