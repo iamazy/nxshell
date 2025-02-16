@@ -36,7 +36,7 @@ An open-source, cross-platform SSH session manager powered by <a href="https://g
 - [x] Multi Execute
 - [x] Multi Instance
 - [x] Key features of **Alacritty**
-- [x] Ssh session manager
+- [x] Ssh session manager (Password/SSH Config)
 
 ### Roadmap 🏁
 
