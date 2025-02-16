@@ -174,6 +174,17 @@ impl NxShell {
                 auth,
             },
         };
+
+        if self
+            .db
+            .find_session(&session.group, &session.name)?
+            .is_some()
+        {
+            return Err(NxError::Plain(
+                "`group` and `name` already exist, please choose another name.".to_string(),
+            ));
+        }
+
         self.add_shell_tab(ctx.clone(), typ)?;
 
         self.db.insert_session(Session {
