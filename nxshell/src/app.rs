@@ -6,6 +6,7 @@ use copypasta::ClipboardContext;
 use eframe::{egui, NativeOptions};
 use egui::{Align2, CollapsingHeader, FontData, FontId, Id, TextEdit};
 use egui_dock::{DockState, NodeIndex, SurfaceIndex, TabIndex};
+use egui_phosphor::regular::{DRONE, NUMPAD};
 use egui_term::{FontSettings, PtyEvent, TerminalFont};
 use egui_theme_switch::global_theme_switch;
 use egui_toast::Toasts;
@@ -162,8 +163,8 @@ impl NxShell {
                     .show(ui, |ui| {
                         for session in sessions {
                             let icon = match AuthType::from(session.auth_type) {
-                                AuthType::Password => egui_phosphor::regular::NUMPAD,
-                                AuthType::Config => egui_phosphor::regular::FILE_CODE,
+                                AuthType::Password => NUMPAD,
+                                AuthType::Config => DRONE,
                             };
                             let response = ui.button(format!("{icon} {}", session.name));
                             if response.double_clicked() {
