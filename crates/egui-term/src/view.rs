@@ -69,6 +69,10 @@ impl Widget for TerminalView<'_> {
             layout.ctx.set_cursor_icon(CursorIcon::Default);
         }
 
+        if self.options.active_tab_id.is_none() {
+            self.has_focus = false;
+        }
+
         // context menu
         if let Some(pos) = state.cursor_position {
             self.context_menu(pos, &layout, ui);

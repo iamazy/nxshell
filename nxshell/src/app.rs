@@ -4,7 +4,7 @@ use crate::ui::form::{AuthType, NxStateManager};
 use crate::ui::tab_view::Tab;
 use copypasta::ClipboardContext;
 use eframe::{egui, NativeOptions};
-use egui::{Align2, CollapsingHeader, FontData, FontId, Id};
+use egui::{Align2, CollapsingHeader, FontData, FontId, Id, TextEdit};
 use egui_dock::{DockState, NodeIndex, SurfaceIndex, TabIndex};
 use egui_term::{FontSettings, PtyEvent, TerminalFont};
 use egui_theme_switch::global_theme_switch;
@@ -111,6 +111,8 @@ impl eframe::App for NxShell {
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                         ui.label("Sessions");
                     });
+
+                    // TODO: add close menu
                     // ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                     //     ui.label("Sessions");
                     // });
@@ -140,10 +142,12 @@ impl eframe::App for NxShell {
 
 impl NxShell {
     fn search_sessions(&mut self, ui: &mut egui::Ui) {
-        if ui
-            .text_edit_singleline(&mut self.opts.session_filter)
-            .changed()
-        {
+        let text_edit = TextEdit::singleline(&mut self.opts.session_filter);
+        let response = ui.add(text_edit);
+        if response.clicked() {
+            // gain ui focus
+            self.opts.active_tab_id = None;
+        } else if response.changed() {
             if let Ok(sessions) = self.db.find_sessions(&self.opts.session_filter) {
                 self.state_manager.sessions = Some(sessions);
             }
