@@ -2,6 +2,7 @@ use crate::db::Session;
 use indexmap::IndexMap;
 
 mod session;
+pub use session::AuthType;
 
 #[derive(Default)]
 pub struct NxStateManager {

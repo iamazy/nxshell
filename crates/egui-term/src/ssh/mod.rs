@@ -4,6 +4,7 @@ use alacritty_terminal::event::{OnResize, WindowSize};
 use alacritty_terminal::tty::{ChildEvent, EventedPty, EventedReadWrite};
 use anyhow::Context;
 use polling::{Event, PollMode, Poller};
+use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use tracing::{error, trace};
@@ -172,17 +173,25 @@ impl OnResize for Pty {
 }
 
 impl Pty {
-    pub fn new(mut opts: SshOptions) -> Result<Self, TermError> {
+    pub fn new(opts: SshOptions) -> Result<Self, TermError> {
         let mut config = Config::new();
-        config.add_default_config_files();
 
-        let port = opts.port.unwrap_or(22);
-        let mut config = config.for_host(opts.host);
-        config.insert("port".to_string(), port.to_string());
+        let (mut auth_data, config) = match opts.auth {
+            Authentication::Password(user, password) => {
+                let port = opts.port.unwrap_or(22);
+                let mut config = config.for_host(opts.host);
 
-        if let Some(user) = opts.user.take() {
-            config.insert("user".to_string(), user);
-        }
+                config.insert("port".to_string(), port.to_string());
+                config.insert("user".to_string(), user);
+                (Some(password), config)
+            }
+            Authentication::Config => {
+                config.add_default_config_files();
+                let config = config.for_host(opts.host);
+
+                (None, config)
+            }
+        };
         smol::block_on(async move {
             let (session, events) = Session::connect(config)?;
 
@@ -197,11 +206,19 @@ impl Pty {
                         verify.answer(true).await.context("send verify response")?;
                     }
                     SessionEvent::Authenticate(auth) => {
-                        if auth.prompts.is_empty() {
-                            auth.answer(vec![]).await?;
-                        } else if let Some(password) = opts.password.take() {
-                            auth.answer(vec![password]).await?;
+                        for a in auth.prompts.iter() {
+                            println!("prompt: {}", a.prompt);
                         }
+
+                        let mut answers = vec![];
+                        for prompt in auth.prompts.iter() {
+                            if prompt.prompt.contains("Password") {
+                                let answer = auth_data.take();
+                                answers.push(answer.unwrap_or_default());
+                            }
+                        }
+
+                        auth.answer(answers).await?;
                     }
                     SessionEvent::HostVerificationFailed(failed) => {
                         error!("host verification failed: {failed}");
@@ -215,8 +232,13 @@ impl Pty {
                 }
             }
 
+            // FIXME: set in settings
+            let mut env = HashMap::new();
+            env.insert("LANG".to_string(), "zh_CN.utf8".to_string());
+            env.insert("LC_COLLATE".to_string(), "C".to_string());
+
             let (pty, child) = session
-                .request_pty("xterm-256color", PtySize::default(), None, None)
+                .request_pty("xterm-256color", PtySize::default(), None, Some(env))
                 .await?;
 
             let signal = tcp_signal()?;
@@ -231,8 +253,13 @@ pub struct SshOptions {
     pub name: String,
     pub host: String,
     pub port: Option<u16>,
-    pub user: Option<String>,
-    pub password: Option<String>,
+    pub auth: Authentication,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Authentication {
+    Password(String, String),
+    Config,
 }
 
 fn tcp_signal() -> std::io::Result<TcpStream> {

@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "crates/catppuccin-egui",
     "crates/egui-dock",
-    "crates/egui-form",
     "crates/egui-term",
     "crates/egui-theme-switch",
     "crates/egui-toast",
@@ -31,6 +30,8 @@ duplicate = "2"
 eframe = "0.31"
 egui = "0.31"
 egui_extras = "0.31"
+egui_form = "0.5"
+egui-phosphor = "0.9"
 egui-theme-switch = "0.2.3"
 egui-toast = "0.16"
 garde = "0.22"

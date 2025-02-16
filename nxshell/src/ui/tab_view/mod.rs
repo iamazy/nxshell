@@ -7,8 +7,10 @@ use crate::ui::tab_view::session::SessionList;
 use copypasta::ClipboardContext;
 use egui::{Label, Response, Sense, Ui};
 use egui_dock::{DockArea, Style};
+use egui_phosphor::regular::{DRONE, NUMPAD};
 use egui_term::{
-    PtyEvent, TermType, Terminal, TerminalContext, TerminalOptions, TerminalTheme, TerminalView,
+    Authentication, PtyEvent, TermType, Terminal, TerminalContext, TerminalOptions, TerminalTheme,
+    TerminalView,
 };
 use homedir::my_home;
 use std::error::Error;
@@ -79,7 +81,13 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
         match &mut tab.inner {
             TabInner::Term(term) => match term.term_type {
-                TermType::Ssh { ref options } => options.name.to_owned().into(),
+                TermType::Ssh { ref options } => {
+                    let icon = match options.auth {
+                        Authentication::Config => DRONE,
+                        Authentication::Password(..) => NUMPAD,
+                    };
+                    format!("{icon} {}", options.name).into()
+                }
                 TermType::Regular { .. } => "local".into(),
             },
             TabInner::SessionList(_) => "sessions".into(),
@@ -123,11 +131,13 @@ impl egui_dock::TabViewer for TabViewer<'_> {
         if response.hovered() {
             if let TabInner::Term(term) = &mut tab.inner {
                 if let TermType::Ssh { options } = &term.term_type {
-                    response.show_tooltip_text(format!(
-                        "{}:{}",
-                        options.host,
-                        options.port.unwrap_or(22)
-                    ));
+                    if let Authentication::Password(..) = options.auth {
+                        response.show_tooltip_text(format!(
+                            "{}:{}",
+                            options.host,
+                            options.port.unwrap_or(22)
+                        ));
+                    }
                 }
             }
         }

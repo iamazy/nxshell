@@ -1,15 +1,15 @@
-use crate::db::{DbConn, Session};
+use crate::db::DbConn;
 use crate::errors::{error_toast, NxError};
-use crate::ui::form::NxStateManager;
+use crate::ui::form::{AuthType, NxStateManager};
 use crate::ui::tab_view::Tab;
 use copypasta::ClipboardContext;
 use eframe::{egui, NativeOptions};
-use egui::{Align2, CollapsingHeader, FontData, FontId, Id};
+use egui::{Align2, CollapsingHeader, FontData, FontId, Id, TextEdit};
 use egui_dock::{DockState, NodeIndex, SurfaceIndex, TabIndex};
-use egui_term::{FontSettings, PtyEvent, SshOptions, TermType, TerminalFont};
+use egui_phosphor::regular::{DRONE, NUMPAD};
+use egui_term::{FontSettings, PtyEvent, TerminalFont};
 use egui_theme_switch::global_theme_switch;
 use egui_toast::Toasts;
-use orion::aead::{open, SecretKey};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -23,6 +23,7 @@ pub struct NxShellOptions {
     pub active_tab_id: Option<Id>,
     pub term_font: TerminalFont,
     pub term_font_size: f32,
+    pub session_filter: String,
 }
 
 impl Default for NxShellOptions {
@@ -38,6 +39,7 @@ impl Default for NxShellOptions {
             multi_exec: false,
             term_font: TerminalFont::new(font_setting),
             term_font_size,
+            session_filter: String::default(),
         }
     }
 }
@@ -106,37 +108,20 @@ impl eframe::App for NxShell {
             .resizable(true)
             .width_range(200.0..=300.0)
             .show(ctx, |ui| {
-                ui.label("Sessions");
-                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                        ui.label("Sessions");
+                    });
 
-                if let Some(sessions) = self.state_manager.sessions.take() {
-                    for (group, sessions) in sessions.iter() {
-                        CollapsingHeader::new(group)
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                for session in sessions {
-                                    let response = ui.button(&session.name);
-                                    if response.double_clicked() {
-                                        match self.db.find_session(&session.group, &session.name) {
-                                            Ok(Some(session)) => {
-                                                if let Err(err) =
-                                                    self.add_shell_tab_with_secret(ctx, session)
-                                                {
-                                                    toasts.add(error_toast(err.to_string()));
-                                                }
-                                            }
-                                            Ok(None) => {}
-                                            Err(err) => {
-                                                toasts.add(error_toast(err.to_string()));
-                                            }
-                                        }
-                                    } else if response.secondary_clicked() {
-                                    }
-                                }
-                            });
-                    }
-                    self.state_manager.sessions = Some(sessions);
-                }
+                    // TODO: add close menu
+                    // ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    //     ui.label("Sessions");
+                    // });
+                });
+
+                self.search_sessions(ui);
+                ui.separator();
+                self.list_sessions(ctx, ui, &mut toasts);
             });
         egui::TopBottomPanel::bottom("main_bottom_panel").show(ctx, |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
@@ -157,6 +142,56 @@ impl eframe::App for NxShell {
 }
 
 impl NxShell {
+    fn search_sessions(&mut self, ui: &mut egui::Ui) {
+        let text_edit = TextEdit::singleline(&mut self.opts.session_filter);
+        let response = ui.add(text_edit);
+        if response.clicked() {
+            // gain ui focus
+            self.opts.active_tab_id = None;
+        } else if response.changed() {
+            if let Ok(sessions) = self.db.find_sessions(&self.opts.session_filter) {
+                self.state_manager.sessions = Some(sessions);
+            }
+        }
+    }
+
+    fn list_sessions(&mut self, ctx: &egui::Context, ui: &mut egui::Ui, toasts: &mut Toasts) {
+        if let Some(sessions) = self.state_manager.sessions.take() {
+            for (group, sessions) in sessions.iter() {
+                CollapsingHeader::new(group)
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        for session in sessions {
+                            let icon = match AuthType::from(session.auth_type) {
+                                AuthType::Password => NUMPAD,
+                                AuthType::Config => DRONE,
+                            };
+                            let response = ui.button(format!("{icon} {}", session.name));
+                            if response.double_clicked() {
+                                match self.db.find_session(&session.group, &session.name) {
+                                    Ok(Some(session)) => {
+                                        if let Err(err) =
+                                            self.add_shell_tab_with_secret(ctx, session)
+                                        {
+                                            toasts.add(error_toast(err.to_string()));
+                                        }
+                                    }
+                                    Ok(None) => {}
+                                    Err(err) => {
+                                        toasts.add(error_toast(err.to_string()));
+                                    }
+                                }
+                            } else if response.secondary_clicked() {
+                            }
+                        }
+                    });
+            }
+            self.state_manager.sessions = Some(sessions);
+        }
+    }
+}
+
+impl NxShell {
     fn recv_event(&mut self) {
         if let Ok((tab_id, PtyEvent::Exit)) = self.command_receiver.try_recv() {
             let mut index: Option<(SurfaceIndex, NodeIndex, TabIndex)> = None;
@@ -170,29 +205,6 @@ impl NxShell {
                 self.dock_state.remove_tab(index);
             }
         }
-    }
-
-    fn add_shell_tab_with_secret(
-        &mut self,
-        ctx: &egui::Context,
-        session: Session,
-    ) -> Result<(), NxError> {
-        let key = SecretKey::from_slice(&session.secret_key)?;
-        let password = open(&key, &session.secret_data)?;
-        let password = String::from_utf8(password)?;
-        self.add_shell_tab(
-            ctx.clone(),
-            TermType::Ssh {
-                options: SshOptions {
-                    group: session.group,
-                    name: session.name,
-                    host: session.host,
-                    port: Some(session.port),
-                    user: Some(session.username),
-                    password: Some(password),
-                },
-            },
-        )
     }
 }
 
@@ -208,5 +220,9 @@ fn set_font(ctx: &egui::Context) {
         .entry(egui::FontFamily::Monospace)
         .or_default()
         .push(name.to_owned());
+
+    // add egui icon
+    egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
     ctx.set_fonts(fonts);
 }
