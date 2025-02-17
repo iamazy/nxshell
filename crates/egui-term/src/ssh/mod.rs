@@ -47,7 +47,7 @@ pub struct Pty {
     #[cfg(unix)]
     pub sig_id: SigId,
     #[cfg(windows)]
-    pub signals: std::net::TcpStream,
+    pub signals: TcpStream,
 }
 
 impl Drop for Pty {
@@ -228,10 +228,6 @@ impl Pty {
                         verify.answer(true).await.context("send verify response")?;
                     }
                     SessionEvent::Authenticate(auth) => {
-                        for a in auth.prompts.iter() {
-                            println!("prompt: {}", a.prompt);
-                        }
-
                         let mut answers = vec![];
                         for prompt in auth.prompts.iter() {
                             if prompt.prompt.contains("Password") {
