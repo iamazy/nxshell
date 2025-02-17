@@ -5,7 +5,6 @@ use alacritty_terminal::tty::{ChildEvent, EventedPty, EventedReadWrite};
 use anyhow::Context;
 use polling::{Event, PollMode, Poller};
 use std::collections::HashMap;
-use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use tracing::{error, trace};
 use wezterm_ssh::{
@@ -14,10 +13,23 @@ use wezterm_ssh::{
 };
 
 #[cfg(unix)]
-use std::os::fd::{AsFd, AsRawFd};
+use signal_hook::{
+    consts,
+    low_level::{pipe, unregister},
+    SigId,
+};
+
+#[cfg(unix)]
+use std::os::{
+    fd::{AsFd, AsRawFd},
+    unix::net::UnixStream,
+};
 
 #[cfg(windows)]
-use std::os::windows::io::{AsRawSocket, AsSocket};
+use std::{
+    net::{TcpListener, TcpStream},
+    os::windows::io::{AsRawSocket, AsSocket},
+};
 
 // Interest in PTY read/writes.
 #[cfg(unix)]
@@ -30,12 +42,22 @@ const PTY_CHILD_EVENT_TOKEN: usize = 1;
 pub struct Pty {
     pub pty: SshPty,
     pub child: SshChildProcess,
-    pub signal: TcpStream,
+    #[cfg(unix)]
+    pub signals: UnixStream,
+    #[cfg(unix)]
+    pub sig_id: SigId,
+    #[cfg(windows)]
+    pub signals: TcpStream,
 }
 
 impl Drop for Pty {
     fn drop(&mut self) {
         let _ = self.child.kill();
+
+        // Clear signal-hook handler.
+        #[cfg(unix)]
+        unregister(self.sig_id);
+
         let _ = self.child.wait();
     }
 }
@@ -66,7 +88,7 @@ impl EventedReadWrite for Pty {
         interest.key = PTY_READ_WRITE_TOKEN;
         let _ = self.pty.reader.set_non_blocking(true);
         let _ = self.pty.writer.set_non_blocking(true);
-        let _ = self.signal.set_nonblocking(true);
+        let _ = self.signals.set_nonblocking(true);
 
         #[cfg(unix)]
         {
@@ -74,8 +96,8 @@ impl EventedReadWrite for Pty {
             poller.add_with_mode(self.pty.writer.as_raw_fd(), interest, mode)?;
 
             poller.add_with_mode(
-                self.signal.as_raw_fd(),
-                Event::readable(PTY_CHILD_EVENT_TOKEN),
+                &self.signals,
+                Event::writable(PTY_CHILD_EVENT_TOKEN),
                 PollMode::Level,
             )?;
         }
@@ -86,8 +108,8 @@ impl EventedReadWrite for Pty {
             poller.add_with_mode(self.pty.writer.as_raw_socket(), interest, mode)?;
 
             poller.add_with_mode(
-                self.signal.as_raw_socket(),
-                Event::readable(crate::ssh::PTY_CHILD_EVENT_TOKEN),
+                self.signals.as_raw_socket(),
+                Event::readable(PTY_CHILD_EVENT_TOKEN),
                 PollMode::Level,
             )?;
         }
@@ -109,8 +131,8 @@ impl EventedReadWrite for Pty {
             poller.modify_with_mode(self.pty.writer.as_fd(), interest, mode)?;
 
             poller.modify_with_mode(
-                self.signal.as_fd(),
-                Event::readable(PTY_CHILD_EVENT_TOKEN),
+                &self.signals,
+                Event::writable(PTY_CHILD_EVENT_TOKEN),
                 PollMode::Level,
             )?;
         }
@@ -121,8 +143,8 @@ impl EventedReadWrite for Pty {
             poller.modify_with_mode(self.pty.writer.as_socket(), interest, mode)?;
 
             poller.modify_with_mode(
-                self.signal.as_socket(),
-                Event::readable(crate::ssh::PTY_CHILD_EVENT_TOKEN),
+                self.signals.as_socket(),
+                Event::readable(PTY_CHILD_EVENT_TOKEN),
                 PollMode::Level,
             )?;
         }
@@ -136,7 +158,7 @@ impl EventedReadWrite for Pty {
             poller.delete(self.pty.reader.as_fd())?;
             poller.delete(self.pty.writer.as_fd())?;
 
-            poller.delete(self.signal.as_fd())?;
+            poller.delete(&self.signals)?;
         }
 
         #[cfg(windows)]
@@ -144,7 +166,7 @@ impl EventedReadWrite for Pty {
             poller.delete(self.pty.reader.as_socket())?;
             poller.delete(self.pty.writer.as_socket())?;
 
-            poller.delete(self.signal.as_socket())?;
+            poller.delete(self.signals.as_socket())?;
         }
 
         Ok(())
@@ -206,10 +228,6 @@ impl Pty {
                         verify.answer(true).await.context("send verify response")?;
                     }
                     SessionEvent::Authenticate(auth) => {
-                        for a in auth.prompts.iter() {
-                            println!("prompt: {}", a.prompt);
-                        }
-
                         let mut answers = vec![];
                         for prompt in auth.prompts.iter() {
                             if prompt.prompt.contains("Password") {
@@ -234,15 +252,43 @@ impl Pty {
 
             // FIXME: set in settings
             let mut env = HashMap::new();
-            env.insert("LANG".to_string(), "zh_CN.utf8".to_string());
+            env.insert("LANG".to_string(), "en_US.UTF-8".to_string());
             env.insert("LC_COLLATE".to_string(), "C".to_string());
 
             let (pty, child) = session
                 .request_pty("xterm-256color", PtySize::default(), None, Some(env))
                 .await?;
 
-            let signal = tcp_signal()?;
-            Ok(Pty { pty, child, signal })
+            #[cfg(unix)]
+            {
+                // Prepare signal handling before spawning child.
+                let (signals, sig_id) = {
+                    let (sender, recv) = UnixStream::pair()?;
+
+                    // Register the recv end of the pipe for SIGCHLD.
+                    let sig_id = pipe::register(consts::SIGCHLD, sender)?;
+                    recv.set_nonblocking(true)?;
+                    (recv, sig_id)
+                };
+
+                Ok(Pty {
+                    pty,
+                    child,
+                    signals,
+                    sig_id,
+                })
+            }
+
+            #[cfg(windows)]
+            {
+                let listener = TcpListener::bind("127.0.0.1:0")?;
+                let signals = TcpStream::connect(listener.local_addr()?)?;
+                Ok(Pty {
+                    pty,
+                    child,
+                    signals,
+                })
+            }
         })
     }
 }
@@ -260,9 +306,4 @@ pub struct SshOptions {
 pub enum Authentication {
     Password(String, String),
     Config,
-}
-
-fn tcp_signal() -> std::io::Result<TcpStream> {
-    let listener = TcpListener::bind("127.0.0.1:0")?;
-    TcpStream::connect(listener.local_addr()?)
 }

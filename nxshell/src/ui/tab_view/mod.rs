@@ -79,6 +79,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     type Tab = Tab;
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
+        let tab_id = tab.id();
         match &mut tab.inner {
             TabInner::Term(term) => match term.term_type {
                 TermType::Ssh { ref options } => {
@@ -86,9 +87,19 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                         Authentication::Config => DRONE,
                         Authentication::Password(..) => NUMPAD,
                     };
-                    format!("{icon} {}", options.name).into()
+                    if tab_id > 0 {
+                        format!("{icon} {} ({tab_id})", options.name).into()
+                    } else {
+                        format!("{icon} {}", options.name).into()
+                    }
                 }
-                TermType::Regular { .. } => "local".into(),
+                TermType::Regular { .. } => {
+                    if tab_id > 0 {
+                        format!("local ({tab_id})").into()
+                    } else {
+                        "local".into()
+                    }
+                }
             },
             TabInner::SessionList(_) => "sessions".into(),
         }
