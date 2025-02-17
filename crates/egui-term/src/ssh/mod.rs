@@ -286,7 +286,7 @@ impl Pty {
             #[cfg(windows)]
             {
                 let listener = TcpListener::bind("127.0.0.1:0")?;
-                let signals = TcpStream::connect(listener.local_addr()?);
+                let signals = TcpStream::connect(listener.local_addr()?)?;
                 Ok(Pty {
                     pty,
                     child,
