@@ -26,7 +26,10 @@ use std::os::{
 };
 
 #[cfg(windows)]
-use std::os::windows::io::{AsRawSocket, AsSocket};
+use std::{
+    net::{TcpListener, TcpStream},
+    os::windows::io::{AsRawSocket, AsSocket},
+};
 
 // Interest in PTY read/writes.
 #[cfg(unix)]
@@ -44,7 +47,7 @@ pub struct Pty {
     #[cfg(unix)]
     pub sig_id: SigId,
     #[cfg(windows)]
-    pub signals: TcpStream,
+    pub signals: std::net::TcpStream,
 }
 
 impl Drop for Pty {
@@ -282,8 +285,6 @@ impl Pty {
 
             #[cfg(windows)]
             {
-                use std::net::{TcpListener, TcpStream};
-
                 let listener = TcpListener::bind("127.0.0.1:0")?;
                 let signals = TcpStream::connect(listener.local_addr()?);
                 Ok(Pty {
