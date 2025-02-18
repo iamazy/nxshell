@@ -1,5 +1,5 @@
 use crate::errors::TermError;
-use crate::ssh::{Pty, SshOptions};
+use crate::ssh::{SshOptions, SshSession};
 use crate::types::Size;
 use alacritty_terminal::event::{Event, EventListener, Notify, OnResize, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop, Msg, Notifier};
@@ -138,6 +138,7 @@ pub enum TermType {
 
 pub struct Terminal {
     pub id: u64,
+    pub session: Option<SshSession>,
     pub url_regex: RegexSearch,
     pub term: Arc<FairMutex<Term<EventProxy>>>,
     pub size: TerminalSize,
@@ -152,37 +153,6 @@ impl PartialEq for Terminal {
 }
 
 impl Terminal {
-    pub fn new(
-        id: u64,
-        app_context: egui::Context,
-        term_type: TermType,
-        term_size: TerminalSize,
-        pty_event_proxy_sender: Sender<(u64, PtyEvent)>,
-    ) -> Result<Self, TermError> {
-        match term_type {
-            TermType::Regular { working_directory } => {
-                let opts = Options {
-                    working_directory,
-                    ..Default::default()
-                };
-                Self::new_with_pty(
-                    id,
-                    app_context,
-                    term_size,
-                    tty::new(&opts, term_size.into(), id)?,
-                    pty_event_proxy_sender,
-                )
-            }
-            TermType::Ssh { options } => Self::new_with_pty(
-                id,
-                app_context,
-                term_size,
-                Pty::new(options)?,
-                pty_event_proxy_sender,
-            ),
-        }
-    }
-
     pub fn new_regular(
         id: u64,
         app_context: egui::Context,
@@ -212,6 +182,42 @@ impl Terminal {
             TerminalSize::default(),
             pty_event_proxy_sender,
         )
+    }
+
+    fn new(
+        id: u64,
+        app_context: egui::Context,
+        term_type: TermType,
+        term_size: TerminalSize,
+        pty_event_proxy_sender: Sender<(u64, PtyEvent)>,
+    ) -> Result<Self, TermError> {
+        match term_type {
+            TermType::Regular { working_directory } => {
+                let opts = Options {
+                    working_directory,
+                    ..Default::default()
+                };
+                Self::new_with_pty(
+                    id,
+                    app_context,
+                    term_size,
+                    tty::new(&opts, term_size.into(), id)?,
+                    pty_event_proxy_sender,
+                )
+            }
+            TermType::Ssh { options } => {
+                let session = SshSession::new(options)?;
+                let mut term = Self::new_with_pty(
+                    id,
+                    app_context,
+                    term_size,
+                    session.pty()?,
+                    pty_event_proxy_sender,
+                )?;
+                term.session = Some(session);
+                Ok(term)
+            }
+        }
     }
 
     fn new_with_pty<Pty>(
@@ -254,6 +260,7 @@ impl Terminal {
         debug!("create a terminal backend: {id}");
         Ok(Self {
             id,
+            session: None,
             url_regex,
             term,
             size: term_size,
