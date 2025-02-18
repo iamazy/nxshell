@@ -5,6 +5,7 @@ use alacritty_terminal::tty::{ChildEvent, EventedPty, EventedReadWrite};
 use anyhow::Context;
 use polling::{Event, PollMode, Poller};
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use tracing::{error, trace};
 use wezterm_ssh::{
@@ -261,7 +262,7 @@ impl SshSession {
         env.insert("LANG".to_string(), "en_US.UTF-8".to_string());
         env.insert("LC_COLLATE".to_string(), "C".to_string());
 
-        let (pty, child) = smol::block_on(self.0.request_pty(
+        let (pty, child) = smol::block_on(self.request_pty(
             "xterm-256color",
             PtySize::default(),
             None,
@@ -298,6 +299,19 @@ impl SshSession {
                 signals,
             })
         }
+    }
+}
+
+impl Deref for SshSession {
+    type Target = Session;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SshSession {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
