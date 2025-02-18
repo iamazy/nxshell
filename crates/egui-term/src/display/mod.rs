@@ -162,6 +162,13 @@ impl TerminalView<'_> {
                     ui.separator();
                     // select all btn
                     self.select_all_btn(ui, width);
+
+                    if self.term_ctx.session.is_some() {
+                        ui.separator();
+
+                        // sftp
+                        self.sftp_btn(ui, width);
+                    }
                 });
             });
     }
@@ -204,6 +211,14 @@ impl TerminalView<'_> {
         let select_all_shortcut = ui.ctx().format_shortcut(&select_all_shortcut);
         let select_all_btn = context_btn("Select All", btn_width, Some(select_all_shortcut));
         if ui.add(select_all_btn).clicked() {
+            self.term_ctx.select_all();
+            ui.close_menu();
+        }
+    }
+
+    fn sftp_btn(&mut self, ui: &mut egui::Ui, btn_width: f32) {
+        let sftp_btn = context_btn("Sftp", btn_width, None);
+        if ui.add(sftp_btn).clicked() {
             self.term_ctx.select_all();
             ui.close_menu();
         }
