@@ -279,6 +279,7 @@ impl Drop for Terminal {
 pub struct TerminalContext<'a> {
     pub id: u64,
     pub terminal: MutexGuard<'a, Term<EventProxy>>,
+    pub session: Option<&'a mut SshSession>,
     pub url_regex: &'a mut RegexSearch,
     pub size: &'a mut TerminalSize,
     pub notifier: &'a mut Notifier,
@@ -292,6 +293,7 @@ impl<'a> TerminalContext<'a> {
         Self {
             id: terminal.id,
             terminal: term,
+            session: terminal.session.as_mut(),
             url_regex: &mut terminal.url_regex,
             size: &mut terminal.size,
             notifier: &mut terminal.notifier,
