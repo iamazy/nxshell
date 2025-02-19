@@ -218,9 +218,6 @@ impl<'a> TerminalView<'a> {
                     modifiers,
                     pos,
                 } => {
-                    if out_of_terminal(pos, layout) {
-                        continue;
-                    }
                     if let Some(action) =
                         self.button_click(state, layout, button, pos, &modifiers, pressed)
                     {
@@ -258,11 +255,4 @@ impl<'a> TerminalView<'a> {
 
         self
     }
-}
-
-fn out_of_terminal(pos: Pos2, layout: &Response) -> bool {
-    !(pos.x > layout.rect.min.x
-        && pos.x < layout.rect.max.x
-        && pos.y > layout.rect.min.y
-        && pos.y < layout.rect.max.y)
 }
