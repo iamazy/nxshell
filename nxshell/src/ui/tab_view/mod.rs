@@ -114,7 +114,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                     multi_exec: &mut self.options.multi_exec,
                     theme: &mut tab.terminal_theme,
                     default_font_size: self.options.term_font_size,
-                    active_tab_id: &mut self.options.active_tab_id,
+                    active_tab_id: Some(&mut self.options.active_tab_id),
                 };
 
                 let terminal = TerminalView::new(ui, term_ctx, term_opt)
