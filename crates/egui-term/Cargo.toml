@@ -13,13 +13,19 @@ keywords.workspace = true
 [dependencies]
 alacritty_terminal.workspace = true
 anyhow.workspace = true
+bytesize.workspace = true
+camino.workspace = true
 copypasta.workspace = true
 egui.workspace = true
+egui_extras.workspace = true
+file-format.workspace = true
+homedir.workspace = true
 open.workspace = true
 parking_lot.workspace = true
 polling.workspace = true
 smol.workspace = true
 thiserror.workspace = true
+time.workspace = true
 tracing.workspace = true
 wezterm-ssh = { workspace = true, features = ["vendored-openssl"] }
 

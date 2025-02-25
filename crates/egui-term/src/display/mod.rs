@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 mod color;
+mod sftp;
+pub use sftp::SftpExplorer;
 
 use crate::display::color::HOVERED_HYPERLINK_COLOR;
 use crate::view::TerminalViewState;
@@ -15,6 +17,8 @@ use egui::{
     Painter, Pos2, Rect, Response, Vec2, WidgetText,
 };
 use egui::{Shape, Stroke};
+use tracing::error;
+use wezterm_ssh::Session;
 
 impl TerminalView<'_> {
     pub fn show(self, state: &mut TerminalViewState, layout: &Response, painter: &Painter) {
@@ -163,11 +167,11 @@ impl TerminalView<'_> {
                     // select all btn
                     self.select_all_btn(ui, width);
 
-                    if self.term_ctx.session.is_some() {
+                    if let Some(session) = self.term_ctx.session {
                         ui.separator();
 
                         // sftp
-                        self.sftp_btn(ui, width);
+                        self.sftp_btn(session, ui, width);
                     }
                 });
             });
@@ -216,10 +220,15 @@ impl TerminalView<'_> {
         }
     }
 
-    fn sftp_btn(&mut self, ui: &mut egui::Ui, btn_width: f32) {
+    fn sftp_btn(&mut self, session: &Session, ui: &mut egui::Ui, btn_width: f32) {
         let sftp_btn = context_btn("Sftp", btn_width, None);
         if ui.add(sftp_btn).clicked() {
-            self.term_ctx.select_all();
+            match self.term_ctx.open_sftp(session) {
+                Ok(_) => {
+                    *self.term_ctx.show_sftp_window = true;
+                }
+                Err(err) => error!("opening sftp error: {err}"),
+            }
             ui.close_menu();
         }
     }

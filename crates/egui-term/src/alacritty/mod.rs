@@ -1,3 +1,4 @@
+use crate::display::SftpExplorer;
 use crate::errors::TermError;
 use crate::ssh::{SshOptions, SshSession};
 use crate::types::Size;
@@ -22,6 +23,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use tracing::debug;
+use wezterm_ssh::Session;
 
 pub type PtyEvent = Event;
 
@@ -139,6 +141,7 @@ pub enum TermType {
 pub struct Terminal {
     pub id: u64,
     pub session: Option<SshSession>,
+    pub sftp_explorer: Option<SftpExplorer>,
     pub url_regex: RegexSearch,
     pub term: Arc<FairMutex<Term<EventProxy>>>,
     pub size: TerminalSize,
@@ -261,6 +264,7 @@ impl Terminal {
         Ok(Self {
             id,
             session: None,
+            sftp_explorer: None,
             url_regex,
             term,
             size: term_size,
@@ -279,27 +283,41 @@ impl Drop for Terminal {
 pub struct TerminalContext<'a> {
     pub id: u64,
     pub terminal: MutexGuard<'a, Term<EventProxy>>,
-    pub session: Option<&'a mut SshSession>,
+    pub session: Option<&'a SshSession>,
+    pub sftp_explorer: &'a mut Option<SftpExplorer>,
     pub url_regex: &'a mut RegexSearch,
     pub size: &'a mut TerminalSize,
     pub notifier: &'a mut Notifier,
     pub hovered_hyperlink: &'a mut Option<Match>,
     pub clipboard: &'a mut ClipboardContext,
+    pub show_sftp_window: &'a mut bool,
 }
 
 impl<'a> TerminalContext<'a> {
-    pub fn new(terminal: &'a mut Terminal, clipboard: &'a mut ClipboardContext) -> Self {
+    pub fn new(
+        terminal: &'a mut Terminal,
+        clipboard: &'a mut ClipboardContext,
+        show_sftp_window: &'a mut bool,
+    ) -> Self {
         let term = terminal.term.lock();
         Self {
             id: terminal.id,
             terminal: term,
-            session: terminal.session.as_mut(),
+            session: terminal.session.as_ref(),
+            sftp_explorer: &mut terminal.sftp_explorer,
             url_regex: &mut terminal.url_regex,
             size: &mut terminal.size,
             notifier: &mut terminal.notifier,
             hovered_hyperlink: &mut terminal.hovered_hyperlink,
+            show_sftp_window,
             clipboard,
         }
+    }
+
+    pub fn open_sftp(&mut self, session: &Session) -> Result<(), TermError> {
+        let sftp = session.sftp();
+        *self.sftp_explorer = Some(SftpExplorer::new(sftp)?);
+        Ok(())
     }
 
     pub fn term_mode(&self) -> TermMode {

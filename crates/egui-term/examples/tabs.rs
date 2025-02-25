@@ -70,7 +70,8 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(tab) = self.tab_manager.get_active() {
-                let term_ctx = TerminalContext::new(&mut tab.backend, &mut self.clipboard);
+                let term_ctx =
+                    TerminalContext::new(&mut tab.backend, &mut self.clipboard, &mut false);
                 let term_opt = TerminalOptions {
                     font: &mut tab.font,
                     multi_exec: &mut self.multi_exec,

@@ -96,7 +96,8 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let term_ctx = TerminalContext::new(&mut self.terminal_backend, &mut self.clipboard);
+            let term_ctx =
+                TerminalContext::new(&mut self.terminal_backend, &mut self.clipboard, &mut false);
             let term_opt = TerminalOptions {
                 font: &mut self.terminal_font,
                 multi_exec: &mut self.multi_exec,

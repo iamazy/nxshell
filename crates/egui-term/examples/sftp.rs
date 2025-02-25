@@ -45,7 +45,7 @@ fn main() -> Result<(), TermError> {
         let sftp = session.sftp();
         match sftp.read_dir(s.trim()).await {
             Ok(entries) => {
-                for (path, _) in entries {
+                for (path, _meta) in entries {
                     println!("path: {}", path.as_path())
                 }
             }

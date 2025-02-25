@@ -23,6 +23,8 @@ keywords = ["terminal", "egui"]
 [workspace.dependencies]
 alacritty_terminal = { git = "https://github.com/alacritty/alacritty" }
 anyhow = "1"
+bytesize = "1"
+camino = "1"
 catppuccin-egui = { git = "https://github.com/iamazy/catppuccin-egui", branch = "egui30" }
 chrono = "0.4"
 copypasta = "0.10"
@@ -34,6 +36,7 @@ egui_form = "0.5"
 egui-phosphor = "0.9"
 egui-theme-switch = "0.2.3"
 egui-toast = "0.16"
+file-format = "0.26"
 garde = "0.22"
 homedir = "0.3"
 indexmap = "2"
@@ -48,10 +51,9 @@ serde = "1"
 signal-hook = "0.3"
 smol = "2"
 thiserror = "2"
+time = "0.3"
 tracing = "0.1"
 tracing-subscriber = "0.3"
-uuid = "1"
-validator = "0.20"
 wezterm-ssh = { git = "https://github.com/iamazy/wezterm.git", branch = "nxssh" }
 windows = "0.59"
 

@@ -89,6 +89,8 @@ impl Widget for TerminalView<'_> {
             ui.close_menu();
         }
 
+        self.show_sftp_window(ui.ctx());
+
         self.focus(&layout)
             .resize(&layout)
             .process_input(&mut state, &layout)
