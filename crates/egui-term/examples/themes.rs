@@ -1,5 +1,5 @@
 use copypasta::ClipboardContext;
-use egui::{Id, Vec2};
+use egui::Vec2;
 use egui_term::{
     ColorPalette, PtyEvent, Terminal, TerminalContext, TerminalFont, TerminalOptions,
     TerminalTheme, TerminalView,
@@ -11,7 +11,6 @@ pub struct App {
     terminal_font: TerminalFont,
     terminal_theme: TerminalTheme,
     multi_exec: bool,
-    active_id: Option<Id>,
     clipboard: ClipboardContext,
     pty_proxy_receiver: Receiver<(u64, PtyEvent)>,
 }
@@ -25,7 +24,6 @@ impl App {
         Self {
             terminal_backend,
             multi_exec: false,
-            active_id: None,
             clipboard: ClipboardContext::new().unwrap(),
             terminal_font: TerminalFont::default(),
             terminal_theme: TerminalTheme::default(),
@@ -98,13 +96,14 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let term_ctx = TerminalContext::new(&mut self.terminal_backend, &mut self.clipboard);
+            let term_ctx =
+                TerminalContext::new(&mut self.terminal_backend, &mut self.clipboard, &mut false);
             let term_opt = TerminalOptions {
                 font: &mut self.terminal_font,
                 multi_exec: &mut self.multi_exec,
                 theme: &mut self.terminal_theme,
                 default_font_size: 14.,
-                active_tab_id: &mut self.active_id,
+                active_tab_id: None,
             };
             let terminal = TerminalView::new(ui, term_ctx, term_opt)
                 .set_focus(true)

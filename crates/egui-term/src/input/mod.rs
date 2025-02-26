@@ -50,7 +50,14 @@ impl TerminalView<'_> {
             ))),
             Some(BindingAction::Copy) => {
                 let content = self.term_ctx.selection_content();
-                Some(InputAction::WriteToClipboard(content))
+
+                // if multi_exec is enabled, when copy selected terminal content, only one terminal content copied,
+                // and others copy empty content, which make copy_text in memory always be blank
+                if *self.options.multi_exec && content.is_empty() {
+                    None
+                } else {
+                    Some(InputAction::WriteToClipboard(content))
+                }
             }
             Some(BindingAction::ResetFontSize) => {
                 self.reset_font_size(self.options.default_font_size);

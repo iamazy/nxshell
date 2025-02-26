@@ -1,6 +1,5 @@
 use copypasta::ClipboardContext;
 use eframe::glow;
-use egui::Id;
 use egui_term::{
     PtyEvent, Terminal, TerminalContext, TerminalFont, TerminalOptions, TerminalTheme, TerminalView,
 };
@@ -14,7 +13,6 @@ pub struct App {
     command_receiver: Receiver<(u64, PtyEvent)>,
     tab_manager: TabManager,
     multi_exec: bool,
-    active_tab: Option<Id>,
     clipboard: ClipboardContext,
 }
 
@@ -26,7 +24,6 @@ impl App {
             command_receiver,
             tab_manager: TabManager::new(),
             multi_exec: false,
-            active_tab: None,
             clipboard: ClipboardContext::new().unwrap(),
         }
     }
@@ -73,13 +70,14 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(tab) = self.tab_manager.get_active() {
-                let term_ctx = TerminalContext::new(&mut tab.backend, &mut self.clipboard);
+                let term_ctx =
+                    TerminalContext::new(&mut tab.backend, &mut self.clipboard, &mut false);
                 let term_opt = TerminalOptions {
                     font: &mut tab.font,
                     multi_exec: &mut self.multi_exec,
                     theme: &mut tab.theme,
                     default_font_size: 14.,
-                    active_tab_id: &mut self.active_tab,
+                    active_tab_id: None,
                 };
                 let terminal = TerminalView::new(ui, term_ctx, term_opt)
                     .set_focus(true)

@@ -55,6 +55,7 @@ impl Tab {
                 terminal,
                 terminal_theme: TerminalTheme::default(),
                 term_type: typ,
+                show_sftp_window: false,
             }),
         })
     }
@@ -108,13 +109,17 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
         match &mut tab.inner {
             TabInner::Term(tab) => {
-                let term_ctx = TerminalContext::new(&mut tab.terminal, self.clipboard);
+                let term_ctx = TerminalContext::new(
+                    &mut tab.terminal,
+                    self.clipboard,
+                    &mut tab.show_sftp_window,
+                );
                 let term_opt = TerminalOptions {
                     font: &mut self.options.term_font,
                     multi_exec: &mut self.options.multi_exec,
                     theme: &mut tab.terminal_theme,
                     default_font_size: self.options.term_font_size,
-                    active_tab_id: &mut self.options.active_tab_id,
+                    active_tab_id: Some(&mut self.options.active_tab_id),
                 };
 
                 let terminal = TerminalView::new(ui, term_ctx, term_opt)

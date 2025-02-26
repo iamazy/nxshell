@@ -27,8 +27,8 @@ pub struct NxShellOptions {
     ///
     /// 1. When the mouse cursor leaves the terminal, it still influences the state of the current
     ///    terminal's selection.
-    /// 2. When it is None, all tabs lose focus, and you can iteract with the other UI components.
-    pub active_tab_id: Option<Id>,
+    /// 2. When it is Id::NULL, all tabs lose focus, and you can iteract with the other UI components.
+    pub active_tab_id: Id,
     pub term_font: TerminalFont,
     pub term_font_size: f32,
     pub session_filter: String,
@@ -36,7 +36,7 @@ pub struct NxShellOptions {
 
 impl NxShellOptions {
     pub fn surrender_focus(&mut self) {
-        self.active_tab_id = None;
+        self.active_tab_id = Id::NULL;
     }
 }
 
@@ -49,7 +49,7 @@ impl Default for NxShellOptions {
         Self {
             show_add_session_modal: Rc::new(RefCell::new(false)),
             show_dock_panel: false,
-            active_tab_id: None,
+            active_tab_id: Id::NULL,
             multi_exec: false,
             term_font: TerminalFont::new(font_setting),
             term_font_size,

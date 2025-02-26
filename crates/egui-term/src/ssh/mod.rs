@@ -5,6 +5,7 @@ use alacritty_terminal::tty::{ChildEvent, EventedPty, EventedReadWrite};
 use anyhow::Context;
 use polling::{Event, PollMode, Poller};
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use tracing::{error, trace};
 use wezterm_ssh::{
@@ -194,7 +195,9 @@ impl OnResize for Pty {
     }
 }
 
-impl Pty {
+pub struct SshSession(Session);
+
+impl SshSession {
     pub fn new(opts: SshOptions) -> Result<Self, TermError> {
         let mut config = Config::new();
 
@@ -249,47 +252,66 @@ impl Pty {
                     SessionEvent::Authenticated => break,
                 }
             }
-
-            // FIXME: set in settings
-            let mut env = HashMap::new();
-            env.insert("LANG".to_string(), "en_US.UTF-8".to_string());
-            env.insert("LC_COLLATE".to_string(), "C".to_string());
-
-            let (pty, child) = session
-                .request_pty("xterm-256color", PtySize::default(), None, Some(env))
-                .await?;
-
-            #[cfg(unix)]
-            {
-                // Prepare signal handling before spawning child.
-                let (signals, sig_id) = {
-                    let (sender, recv) = UnixStream::pair()?;
-
-                    // Register the recv end of the pipe for SIGCHLD.
-                    let sig_id = pipe::register(consts::SIGCHLD, sender)?;
-                    recv.set_nonblocking(true)?;
-                    (recv, sig_id)
-                };
-
-                Ok(Pty {
-                    pty,
-                    child,
-                    signals,
-                    sig_id,
-                })
-            }
-
-            #[cfg(windows)]
-            {
-                let listener = TcpListener::bind("127.0.0.1:0")?;
-                let signals = TcpStream::connect(listener.local_addr()?)?;
-                Ok(Pty {
-                    pty,
-                    child,
-                    signals,
-                })
-            }
+            Ok(SshSession(session))
         })
+    }
+
+    pub fn pty(&self) -> Result<Pty, TermError> {
+        // FIXME: set in settings
+        let mut env = HashMap::new();
+        env.insert("LANG".to_string(), "en_US.UTF-8".to_string());
+        env.insert("LC_COLLATE".to_string(), "C".to_string());
+
+        let (pty, child) = smol::block_on(self.request_pty(
+            "xterm-256color",
+            PtySize::default(),
+            None,
+            Some(env),
+        ))?;
+
+        #[cfg(unix)]
+        {
+            // Prepare signal handling before spawning child.
+            let (signals, sig_id) = {
+                let (sender, recv) = UnixStream::pair()?;
+
+                // Register the recv end of the pipe for SIGCHLD.
+                let sig_id = pipe::register(consts::SIGCHLD, sender)?;
+                recv.set_nonblocking(true)?;
+                (recv, sig_id)
+            };
+
+            Ok(Pty {
+                pty,
+                child,
+                signals,
+                sig_id,
+            })
+        }
+
+        #[cfg(windows)]
+        {
+            let listener = TcpListener::bind("127.0.0.1:0")?;
+            let signals = TcpStream::connect(listener.local_addr()?)?;
+            Ok(Pty {
+                pty,
+                child,
+                signals,
+            })
+        }
+    }
+}
+
+impl Deref for SshSession {
+    type Target = Session;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SshSession {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

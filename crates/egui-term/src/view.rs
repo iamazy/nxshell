@@ -52,7 +52,15 @@ pub struct TerminalOptions<'a> {
     pub font: &'a mut TerminalFont,
     pub multi_exec: &'a mut bool,
     pub theme: &'a mut TerminalTheme,
-    pub active_tab_id: &'a mut Option<Id>,
+    pub active_tab_id: Option<&'a mut Id>,
+}
+
+impl TerminalOptions<'_> {
+    pub fn surrender_focus(&mut self) {
+        if let Some(active_tab_id) = self.active_tab_id.as_mut() {
+            **active_tab_id = Id::NULL;
+        }
+    }
 }
 
 impl Widget for TerminalView<'_> {
@@ -63,13 +71,20 @@ impl Widget for TerminalView<'_> {
         let mut state = TerminalViewState::load(ui.ctx(), widget_id);
 
         if layout.contains_pointer() {
-            *self.options.active_tab_id = Some(self.widget_id);
+            if let Some(tab_id) = self.options.active_tab_id.as_mut() {
+                **tab_id = self.widget_id;
+            }
             layout.ctx.set_cursor_icon(CursorIcon::Text);
         } else {
             layout.ctx.set_cursor_icon(CursorIcon::Default);
         }
 
-        if self.options.active_tab_id.is_none() {
+        if self
+            .options
+            .active_tab_id
+            .as_ref()
+            .is_some_and(|id| **id == Id::NULL)
+        {
             self.has_focus = false;
         }
 
@@ -81,6 +96,8 @@ impl Widget for TerminalView<'_> {
             state.cursor_position = None;
             ui.close_menu();
         }
+
+        self.show_sftp_window(ui.ctx());
 
         self.focus(&layout)
             .resize(&layout)
@@ -165,8 +182,11 @@ impl<'a> TerminalView<'a> {
         if !layout.has_focus() {
             return self;
         }
-        if self.options.active_tab_id != &Some(self.widget_id) && !*self.options.multi_exec {
-            return self;
+
+        if let Some(tab_id) = self.options.active_tab_id.as_ref() {
+            if **tab_id != self.widget_id && !*self.options.multi_exec {
+                return self;
+            }
         }
 
         let modifiers = layout.ctx.input(|i| i.modifiers);
@@ -208,9 +228,6 @@ impl<'a> TerminalView<'a> {
                     modifiers,
                     pos,
                 } => {
-                    if out_of_terminal(pos, layout) {
-                        continue;
-                    }
                     if let Some(action) =
                         self.button_click(state, layout, button, pos, &modifiers, pressed)
                     {
@@ -248,11 +265,4 @@ impl<'a> TerminalView<'a> {
 
         self
     }
-}
-
-fn out_of_terminal(pos: Pos2, layout: &Response) -> bool {
-    !(pos.x > layout.rect.min.x
-        && pos.x < layout.rect.max.x
-        && pos.y > layout.rect.min.y
-        && pos.y < layout.rect.max.y)
 }
