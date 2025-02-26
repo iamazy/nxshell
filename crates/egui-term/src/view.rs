@@ -55,6 +55,14 @@ pub struct TerminalOptions<'a> {
     pub active_tab_id: Option<&'a mut Id>,
 }
 
+impl TerminalOptions<'_> {
+    pub fn surrender_focus(&mut self) {
+        if let Some(active_tab_id) = self.active_tab_id.as_mut() {
+            **active_tab_id = Id::NULL;
+        }
+    }
+}
+
 impl Widget for TerminalView<'_> {
     fn ui(mut self, ui: &mut egui::Ui) -> Response {
         let (layout, painter) = ui.allocate_painter(self.size, egui::Sense::click());

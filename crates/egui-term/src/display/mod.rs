@@ -226,6 +226,7 @@ impl TerminalView<'_> {
             match self.term_ctx.open_sftp(session) {
                 Ok(_) => {
                     *self.term_ctx.show_sftp_window = true;
+                    self.options.surrender_focus();
                 }
                 Err(err) => error!("opening sftp error: {err}"),
             }
