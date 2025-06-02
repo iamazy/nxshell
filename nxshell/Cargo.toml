@@ -11,15 +11,15 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
-catppuccin-egui = { path = "../crates/catppuccin-egui" }
+catppuccin-egui = { workspace = true, features = ["egui31"] }
 chrono.workspace = true
 copypasta.workspace = true
 egui.workspace = true
 eframe = { workspace = true, features = [
-    "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
+    "accesskit", # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
-    "wgpu",          # Use the glow rendering backend. Alternative: "wgpu".
-    "persistence",   # Enable restoring app state when restarting the app.
+    "wgpu", # Use the glow rendering backend. Alternative: "wgpu".
+    "persistence", # Enable restoring app state when restarting the app.
 ] }
 egui-term = { path = "../crates/egui-term" }
 egui_dock = { path = "../crates/egui-dock" }

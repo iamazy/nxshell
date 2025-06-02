@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/catppuccin-egui",
     "crates/egui-dock",
     "crates/egui-term",
     "crates/egui-theme-switch",
@@ -23,7 +22,7 @@ keywords = ["terminal", "egui"]
 [workspace.dependencies]
 alacritty_terminal = { git = "https://github.com/alacritty/alacritty" }
 anyhow = "1"
-catppuccin-egui = { git = "https://github.com/iamazy/catppuccin-egui", branch = "egui30" }
+catppuccin-egui = { version = "5.5", default-features = false }
 chrono = "0.4"
 copypasta = "0.10"
 duplicate = "2"
