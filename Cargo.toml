@@ -23,7 +23,7 @@ keywords = ["terminal", "egui"]
 [workspace.dependencies]
 alacritty_terminal = { git = "https://github.com/alacritty/alacritty" }
 anyhow = "1"
-catppuccin-egui = { git = "https://github.com/iamazy/catppuccin-egui", branch = "egui30" }
+catppuccin-egui = "5.5"
 chrono = "0.4"
 copypasta = "0.10"
 duplicate = "2"
