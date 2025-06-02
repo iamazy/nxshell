@@ -11,7 +11,7 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
-catppuccin-egui = { path = "../crates/catppuccin-egui" }
+catppuccin-egui.workspace = true
 chrono.workspace = true
 copypasta.workspace = true
 egui.workspace = true
