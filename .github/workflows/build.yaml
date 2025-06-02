@@ -28,6 +28,10 @@ jobs:
             name: windows
             arch: x86_64
             target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            name: windows
+            arch: aarch64
+            target: aarch64-pc-windows-msvc
           # MacOS
           - os: macos-latest
             name: macos
