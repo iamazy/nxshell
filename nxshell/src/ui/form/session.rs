@@ -144,7 +144,7 @@ impl NxShell {
     fn submit_session(&mut self, ctx: &Context, session: &mut SessionState) -> Result<(), NxError> {
         let (auth, secret_key, secret_data) = match session.auth_type {
             AuthType::Password => {
-                if session.username.trim().is_empty() || session.auth_data.trim().is_empty() {
+                if session.username.trim().is_empty() || session.auth_data.is_empty() {
                     return Err(NxError::Plain(
                         "`username` and `password` cannot be empty in `Password` mode".to_string(),
                     ));
