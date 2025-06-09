@@ -32,6 +32,8 @@ pub struct NxShellOptions {
     pub term_font: TerminalFont,
     pub term_font_size: f32,
     pub session_filter: String,
+
+    pub show_right_panel: bool
 }
 
 impl NxShellOptions {
@@ -118,28 +120,34 @@ impl eframe::App for NxShell {
         egui::TopBottomPanel::top("main_top_panel").show(ctx, |ui| {
             self.menubar(ui);
         });
-        egui::SidePanel::right("main_right_panel")
-            .resizable(true)
-            .width_range(200.0..=300.0)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-                        ui.label("Sessions");
+
+        if self.opts.show_right_panel {
+            egui::SidePanel::right("main_right_panel")
+                .resizable(true)
+                .width_range(200.0..=300.0)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
+                            ui.label("Sessions");
+                        });
+                        // 可以在这里加一个按钮切换 show_right_panel
+                        if ui.button("隐藏").clicked() {
+                            self.opts.show_right_panel = false;
+                        }
                     });
 
-                    // TODO: add close menu
-                    // ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    //     ui.label("Sessions");
-                    // });
+                    self.search_sessions(ui);
+                    ui.separator();
+                    self.list_sessions(ctx, ui, &mut toasts);
                 });
+        }
 
-                self.search_sessions(ui);
-                ui.separator();
-                self.list_sessions(ctx, ui, &mut toasts);
-            });
         egui::TopBottomPanel::bottom("main_bottom_panel").show(ctx, |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                 global_theme_switch(ui);
+                if ui.button("显示 Sessions 侧边栏").clicked() {
+                    self.opts.show_right_panel = true;
+                }
             });
         });
 
