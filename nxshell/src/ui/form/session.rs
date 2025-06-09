@@ -245,7 +245,7 @@ impl NxShell {
                         match session.auth_type {
                             AuthType::Password => {
                                 FormField::new(form, "host")
-                                    .ui(ui, host_edit.char_limit(15).desired_width(150.));
+                                    .ui(ui, host_edit.char_limit(128).desired_width(250.));
                             }
                             AuthType::Config => {
                                 FormField::new(form, "host").ui(ui, host_edit);
