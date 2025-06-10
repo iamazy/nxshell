@@ -69,7 +69,12 @@ impl NxShell {
 
     fn tools_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("Tools", |ui| {
-            ui.add(Checkbox::new(&mut self.opts.multi_exec, "Multi Exec"));
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::LEFT), |ui| {
+                ui.add_sized(
+                    (BTN_WIDTH, 0.),
+                    Checkbox::new(&mut self.opts.multi_exec, "Multi Exec"),
+                );
+            });
         });
     }
 
