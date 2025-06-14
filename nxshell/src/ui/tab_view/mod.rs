@@ -5,8 +5,8 @@ use crate::app::{NxShell, NxShellOptions};
 use crate::consts::GLOBAL_COUNTER;
 use crate::ui::tab_view::session::SessionList;
 use copypasta::ClipboardContext;
-use egui::{Label, Response, Sense, Ui};
-use egui_dock::{DockArea, Style};
+use egui::{Label, Order, Response, Sense, Ui};
+use egui_dock::{node_index::NodeIndex, surface_index::SurfaceIndex, DockArea, Style};
 use egui_phosphor::regular::{DRONE, NUMPAD};
 use egui_term::{
     Authentication, PtyEvent, TermType, Terminal, TerminalContext, TerminalOptions, TerminalTheme,
@@ -18,6 +18,13 @@ use std::sync::mpsc::Sender;
 use terminal::TerminalTab;
 use tracing::error;
 
+const TAB_BTN_WIDTH: f32 = 100.0;
+
+#[derive(Debug, Clone)]
+pub enum TabEvent {
+    Rename(u64), // tab id
+}
+
 #[derive(PartialEq)]
 enum TabInner {
     Term(TerminalTab),
@@ -28,6 +35,8 @@ enum TabInner {
 pub struct Tab {
     inner: TabInner,
     id: u64,
+    custom_title: Option<String>,
+    rename_buffer: String,
 }
 
 impl Tab {
@@ -56,6 +65,8 @@ impl Tab {
                 terminal_theme: TerminalTheme::default(),
                 term_type: typ,
             }),
+            custom_title: None,
+            rename_buffer: String::new(),
         })
     }
 
@@ -65,6 +76,8 @@ impl Tab {
         Self {
             id,
             inner: TabInner::SessionList(SessionList {}),
+            custom_title: None,
+            rename_buffer: String::new(),
         }
     }
 }
@@ -79,6 +92,9 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     type Tab = Tab;
 
     fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
+        if let Some(title) = &tab.custom_title {
+            return title.clone().into();
+        }
         let tab_id = tab.id();
         match &mut tab.inner {
             TabInner::Term(term) => match term.term_type {
@@ -154,6 +170,23 @@ impl egui_dock::TabViewer for TabViewer<'_> {
         }
     }
 
+    fn context_menu(
+        &mut self,
+        ui: &mut Ui,
+        tab: &mut Self::Tab,
+        _surface: SurfaceIndex,
+        _node: NodeIndex,
+    ) {
+        ui.set_width(TAB_BTN_WIDTH);
+        let rename_btn_response = ui.button("Rename Tab");
+        if rename_btn_response.clicked() {
+            self.options.tab_events.push(TabEvent::Rename(tab.id()));
+            ui.close_menu();
+        }
+
+        ui.separator();
+    }
+
     fn closeable(&mut self, tab: &mut Self::Tab) -> bool {
         matches!(&mut tab.inner, TabInner::Term(_))
     }
@@ -184,6 +217,90 @@ impl NxShell {
                         clipboard: &mut self.clipboard,
                     },
                 );
+        }
+    }
+
+    pub fn rename_tab_view(&mut self, ctx: &egui::Context) {
+        if let Some(tab_id) = self.opts.renaming_tab_id {
+            if let Some((_, tab)) = self
+                .dock_state
+                .iter_all_tabs_mut()
+                .find(|(_, tab)| tab.id() == tab_id)
+            {
+                let popup_id = egui::Id::new(format!("rename_tab_{}", tab_id));
+                let mut close_popup = false;
+
+                self.opts.surrender_focus();
+                egui::Area::new("modal_mask".into())
+                    .order(egui::Order::Middle)
+                    .interactable(true)
+                    .show(ctx, |ui| {
+                        let screen_rect = ui.ctx().screen_rect();
+                        let painter = ui.painter();
+                        painter.rect_filled(screen_rect, 0.0, egui::Color32::from_black_alpha(96));
+                        ui.allocate_rect(screen_rect, egui::Sense::click_and_drag());
+                    });
+
+                egui::Window::new("Rename Tab View")
+                    .id(popup_id)
+                    .title_bar(true)
+                    .collapsible(false)
+                    .resizable(false)
+                    .order(Order::Foreground)
+                    .open(&mut self.opts.show_rename_view.borrow_mut())
+                    .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                    .show(ctx, |ui| {
+                        ui.label("Please input a new name for the tab:");
+                        let text_id = egui::Id::new(format!("rename_tab_text_{}", tab_id));
+
+                        ui.add(egui::TextEdit::singleline(&mut tab.rename_buffer).id(text_id));
+                        ui.memory_mut(|mem| mem.request_focus(text_id));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                            if ui.button("Cancel").clicked() {
+                                ui.set_width(50.0);
+                                tab.rename_buffer.clear();
+                                close_popup = true;
+                            }
+
+                            ui.add_space(20.0);
+
+                            if ui.button("OK").clicked() {
+                                ui.set_width(50.0);
+                                if !tab.rename_buffer.is_empty() {
+                                    tab.custom_title = Some(tab.rename_buffer.clone());
+                                }
+                                tab.rename_buffer.clear();
+                                close_popup = true;
+                            }
+                        });
+                        if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            if !tab.rename_buffer.is_empty() {
+                                tab.custom_title = Some(tab.rename_buffer.clone());
+                            }
+                            tab.rename_buffer.clear();
+                            close_popup = true;
+                        } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                            tab.rename_buffer.clear();
+                            close_popup = true;
+                        }
+                    });
+                if close_popup || !*self.opts.show_rename_view.borrow() {
+                    self.opts.renaming_tab_id = None;
+                    *self.opts.show_rename_view.borrow_mut() = false;
+                    tab.rename_buffer.clear();
+                }
+            }
+        } else {
+            self.opts.renaming_tab_id = None;
+
+            if let Some(event) = self.opts.tab_events.pop() {
+                match event {
+                    TabEvent::Rename(tab_id) => {
+                        self.opts.renaming_tab_id = Some(tab_id);
+                        *self.opts.show_rename_view.borrow_mut() = true;
+                    }
+                }
+            }
         }
     }
 }

@@ -2,7 +2,7 @@ use crate::db::DbConn;
 use crate::errors::{error_toast, NxError};
 use crate::ui::form::{AuthType, NxStateManager};
 use crate::ui::side_panel::SidePanel;
-use crate::ui::tab_view::Tab;
+use crate::ui::tab_view::{Tab, TabEvent};
 use copypasta::ClipboardContext;
 use eframe::{egui, NativeOptions};
 use egui::{Align2, CollapsingHeader, FontData, FontId, Id, TextEdit};
@@ -35,6 +35,10 @@ pub struct NxShellOptions {
     pub session_filter: String,
 
     pub side_panel: SidePanel,
+
+    pub show_rename_view: Rc<RefCell<bool>>,
+    pub renaming_tab_id: Option<u64>,
+    pub tab_events: Vec<TabEvent>,
 }
 
 impl NxShellOptions {
@@ -58,6 +62,9 @@ impl Default for NxShellOptions {
             term_font_size,
             session_filter: String::default(),
             side_panel: SidePanel::new(true),
+            show_rename_view: Rc::new(RefCell::new(false)),
+            renaming_tab_id: None,
+            tab_events: Vec::new(),
         }
     }
 }
@@ -168,6 +175,8 @@ impl eframe::App for NxShell {
         egui::CentralPanel::default().show(ctx, |_ui| {
             self.tab_view(ctx);
         });
+
+        self.rename_tab_view(ctx);
 
         toasts.show(ctx);
     }
