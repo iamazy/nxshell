@@ -207,7 +207,7 @@ impl NxShell {
         if self.opts.show_dock_panel {
             DockArea::new(&mut self.dock_state)
                 .show_add_buttons(false)
-                .show_leaf_collapse_buttons(false)
+                .show_leaf_collapse_buttons(true)
                 .style(Style::from_egui(ctx.style().as_ref()))
                 .show(
                     ctx,
