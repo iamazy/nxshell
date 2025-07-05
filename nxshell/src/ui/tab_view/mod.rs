@@ -200,6 +200,10 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             Ok(_) => true,
         }
     }
+
+    fn scroll_bars(&self, _tab: &Self::Tab) -> [bool; 2] {
+        [false, false]
+    }
 }
 
 impl NxShell {
