@@ -7,7 +7,7 @@ use crate::scroll_bar::{InteractiveScrollbar, ScrollbarState};
 use crate::theme::TerminalTheme;
 use crate::types::Size;
 use alacritty_terminal::grid::{Dimensions, Scroll};
-use alacritty_terminal::index::{Point, Line, Column};
+use alacritty_terminal::index::{Column, Line, Point};
 use egui::ImeEvent;
 use egui::Widget;
 use egui::{Context, Event};
@@ -116,7 +116,10 @@ impl Widget for TerminalView<'_> {
 
             if *term.options.search_start {
                 let mut start_pos = Point::new(Line(0), Column(0));
-                let regex = term.term_ctx.terminal.inline_search_right( start_pos, term.options.search_regex);
+                let regex = term
+                    .term_ctx
+                    .terminal
+                    .inline_search_right(start_pos, term.options.search_regex);
                 match regex {
                     Ok(point) => {
                         println!("point: {},  {}", point.line, term.options.search_regex);

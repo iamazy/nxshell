@@ -323,7 +323,7 @@ impl<'a> TerminalContext<'a> {
             BackendCommand::MouseReport(button, modifiers, point, pressed) => {
                 self.mouse_report(button, modifiers, point, pressed);
             }
-            _ => { }
+            _ => {}
         };
     }
 
