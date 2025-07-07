@@ -67,6 +67,11 @@ impl TerminalView<'_> {
             Some(BindingAction::SelectAll) => {
                 Some(InputAction::BackendCall(BackendCommand::SelectAll))
             }
+            Some(BindingAction::Search) => {
+                let content = self.term_ctx.selection_content();
+                self.set_search_regex(content);
+                None
+            }
             _ => None,
         }
     }
@@ -80,6 +85,11 @@ impl TerminalView<'_> {
         if (5. ..=100.).contains(&font_size) {
             *self.options.font.font_size_mut() += size;
         }
+    }
+
+    fn set_search_regex(&mut self, str_regex: String) {
+        *self.options.search_start = true;
+        *self.options.search_regex = str_regex;
     }
 
     pub fn mouse_wheel_input(

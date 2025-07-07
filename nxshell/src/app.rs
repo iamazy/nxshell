@@ -39,6 +39,9 @@ pub struct NxShellOptions {
     pub show_rename_view: Rc<RefCell<bool>>,
     pub renaming_tab_id: Option<u64>,
     pub tab_events: Vec<TabEvent>,
+
+    pub search_start: bool,
+    pub search_regex: String,
 }
 
 impl NxShellOptions {
@@ -65,6 +68,8 @@ impl Default for NxShellOptions {
             show_rename_view: Rc::new(RefCell::new(false)),
             renaming_tab_id: None,
             tab_events: Vec::new(),
+            search_start: false,
+            search_regex: String::default(),
         }
     }
 }

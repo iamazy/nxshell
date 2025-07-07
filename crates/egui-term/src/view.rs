@@ -7,7 +7,7 @@ use crate::scroll_bar::{InteractiveScrollbar, ScrollbarState};
 use crate::theme::TerminalTheme;
 use crate::types::Size;
 use alacritty_terminal::grid::{Dimensions, Scroll};
-use alacritty_terminal::index::Point;
+use alacritty_terminal::index::{Point, Line, Column};
 use egui::ImeEvent;
 use egui::Widget;
 use egui::{Context, Event};
@@ -56,6 +56,8 @@ pub struct TerminalOptions<'a> {
     pub multi_exec: &'a mut bool,
     pub theme: &'a mut TerminalTheme,
     pub active_tab_id: &'a mut Option<Id>,
+    pub search_start: &'a mut bool,
+    pub search_regex: &'a mut String,
 }
 
 impl Widget for TerminalView<'_> {
@@ -110,6 +112,19 @@ impl Widget for TerminalView<'_> {
                 let line_diff = new_pos - display_offset;
                 let line_delta = Scroll::Delta(line_diff.ceil() as i32);
                 grid.scroll_display(line_delta);
+            }
+
+            if *term.options.search_start {
+                let mut start_pos = Point::new(Line(0), Column(0));
+                let regex = term.term_ctx.terminal.inline_search_right( start_pos, term.options.search_regex);
+                match regex {
+                    Ok(point) => {
+                        println!("point: {},  {}", point.line, term.options.search_regex);
+                    }
+                    Err(_point1) => {
+                        println!("search error: {}", term.options.search_regex);
+                    }
+                }
             }
 
             term.show(&mut state, &layout, &painter);
@@ -237,13 +252,11 @@ impl<'a> TerminalView<'a> {
                     modifiers,
                     pos,
                 } => {
-                    let new_pos: Pos2;
-
-                    if out_of_terminal(pos, layout) {
-                        new_pos = pos.clamp(layout.rect.min, layout.rect.max);
+                    let new_pos = if out_of_terminal(pos, layout) {
+                        pos.clamp(layout.rect.min, layout.rect.max)
                     } else {
-                        new_pos = pos;
-                    }
+                        pos
+                    };
 
                     if let Some(action) =
                         self.button_click(state, layout, button, new_pos, &modifiers, pressed)
