@@ -172,7 +172,7 @@ impl TerminalView<'_> {
         #[cfg(target_os = "macos")]
         let copy_shortcut = KeyboardShortcut::new(Modifiers::MAC_CMD, Key::C);
         let copy_shortcut = ui.ctx().format_shortcut(&copy_shortcut);
-        let copy_btn = context_btn("Copy", btn_width, Some(copy_shortcut));
+        let copy_btn: Button<'_> = context_btn("Copy", btn_width, Some(copy_shortcut));
         if ui.add(copy_btn).clicked() {
             let data = self.term_ctx.selection_content();
             layout.ctx.copy_text(data);
@@ -182,7 +182,7 @@ impl TerminalView<'_> {
 
     fn paste_btn(&mut self, ui: &mut egui::Ui, btn_width: f32) {
         #[cfg(not(target_os = "macos"))]
-        let paste_shortcut = KeyboardShortcut::new(Modifiers::CTRL, Key::V);
+        let paste_shortcut = KeyboardShortcut::new(Modifiers::CTRL | Modifiers::SHIFT, Key::V);
         #[cfg(target_os = "macos")]
         let paste_shortcut = KeyboardShortcut::new(Modifiers::MAC_CMD, Key::V);
         let paste_shortcut = ui.ctx().format_shortcut(&paste_shortcut);
@@ -198,7 +198,7 @@ impl TerminalView<'_> {
 
     fn select_all_btn(&mut self, ui: &mut egui::Ui, btn_width: f32) {
         #[cfg(not(target_os = "macos"))]
-        let select_all_shortcut = KeyboardShortcut::new(Modifiers::CTRL, Key::A);
+        let select_all_shortcut = KeyboardShortcut::new(Modifiers::CTRL | Modifiers::SHIFT, Key::A);
         #[cfg(target_os = "macos")]
         let select_all_shortcut = KeyboardShortcut::new(Modifiers::MAC_CMD, Key::A);
         let select_all_shortcut = ui.ctx().format_shortcut(&select_all_shortcut);

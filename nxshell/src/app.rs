@@ -1,7 +1,8 @@
 use crate::db::DbConn;
 use crate::errors::{error_toast, NxError};
 use crate::ui::form::{AuthType, NxStateManager};
-use crate::ui::tab_view::Tab;
+use crate::ui::side_panel::SidePanel;
+use crate::ui::tab_view::{Tab, TabEvent};
 use copypasta::ClipboardContext;
 use eframe::{egui, NativeOptions};
 use egui::{Align2, CollapsingHeader, FontData, FontId, Id, TextEdit};
@@ -32,6 +33,15 @@ pub struct NxShellOptions {
     pub term_font: TerminalFont,
     pub term_font_size: f32,
     pub session_filter: String,
+
+    pub side_panel: SidePanel,
+
+    pub show_rename_view: Rc<RefCell<bool>>,
+    pub renaming_tab_id: Option<u64>,
+    pub tab_events: Vec<TabEvent>,
+
+    pub search_start: bool,
+    pub search_regex: String,
 }
 
 impl NxShellOptions {
@@ -54,6 +64,12 @@ impl Default for NxShellOptions {
             term_font: TerminalFont::new(font_setting),
             term_font_size,
             session_filter: String::default(),
+            side_panel: SidePanel::new(true),
+            show_rename_view: Rc::new(RefCell::new(false)),
+            renaming_tab_id: None,
+            tab_events: Vec::new(),
+            search_start: false,
+            search_regex: String::default(),
         }
     }
 }
@@ -118,25 +134,38 @@ impl eframe::App for NxShell {
         egui::TopBottomPanel::top("main_top_panel").show(ctx, |ui| {
             self.menubar(ui);
         });
-        egui::SidePanel::right("main_right_panel")
-            .resizable(true)
-            .width_range(200.0..=300.0)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
-                        ui.label("Sessions");
+
+        if self.opts.side_panel.show_right_panel {
+            let side_panel_response = egui::SidePanel::right("main_right_panel")
+                .resizable(true)
+                .width_range(self.opts.side_panel.min_panel_width..=SidePanel::MAX_WIDTH)
+                .default_width(SidePanel::DEFAULT_WIDTH)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
+                            ui.label("Sessions");
+                        });
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Max), |ui| {
+                            if ui.button("X").clicked() {
+                                self.opts.side_panel.show_right_panel = false;
+                            }
+                        });
                     });
 
-                    // TODO: add close menu
-                    // ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    //     ui.label("Sessions");
-                    // });
+                    self.search_sessions(ui);
+                    ui.separator();
+                    self.list_sessions(ctx, ui, &mut toasts);
                 });
 
-                self.search_sessions(ui);
-                ui.separator();
-                self.list_sessions(ctx, ui, &mut toasts);
-            });
+            if side_panel_response.response.rect.width() <= SidePanel::CLOSE_WIDTH {
+                self.opts.side_panel.show_right_panel = false;
+                self.opts.side_panel.min_panel_width = SidePanel::DEFAULT_WIDTH;
+            } else {
+                self.opts.side_panel.min_panel_width = SidePanel::MIN_WIDTH;
+            }
+        }
+
         egui::TopBottomPanel::bottom("main_bottom_panel").show(ctx, |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
                 global_theme_switch(ui);
@@ -151,6 +180,8 @@ impl eframe::App for NxShell {
         egui::CentralPanel::default().show(ctx, |_ui| {
             self.tab_view(ctx);
         });
+
+        self.rename_tab_view(ctx);
 
         toasts.show(ctx);
     }

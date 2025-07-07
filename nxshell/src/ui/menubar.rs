@@ -22,6 +22,8 @@ impl NxShell {
             self.session_menu(ui);
             // Window
             window_menu(ui);
+            // View
+            self.view_menu(ui);
             // Tools
             self.tools_menu(ui);
             // Help
@@ -67,7 +69,23 @@ impl NxShell {
 
     fn tools_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("Tools", |ui| {
-            ui.add(Checkbox::new(&mut self.opts.multi_exec, "Multi Exec"));
+            ui.set_width(BTN_WIDTH);
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::LEFT), |ui| {
+                ui.add(Checkbox::new(&mut self.opts.multi_exec, "Multi Exec"));
+            });
+        });
+    }
+
+    fn view_menu(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button("View", |ui| {
+            ui.set_width(BTN_WIDTH);
+            ui.menu_button("Panes", |ui| {
+                let session_btn = Button::new("Sessions").min_size((BTN_WIDTH, 0.).into());
+                if ui.add(session_btn).clicked() {
+                    self.opts.side_panel.show_right_panel = true;
+                    ui.close_menu();
+                }
+            });
         });
     }
 }
@@ -97,7 +115,7 @@ impl NxShell {
         ctx: &egui::Context,
         session: Session,
     ) -> Result<(), NxError> {
-        let auth = match AuthType::from(session.auth_type) {
+        let auth: Authentication = match AuthType::from(session.auth_type) {
             AuthType::Password => {
                 let key = SecretKey::from_slice(&session.secret_key)?;
                 let auth_data = orion_open(&key, &session.secret_data)?;

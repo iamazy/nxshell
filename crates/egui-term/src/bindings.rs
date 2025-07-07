@@ -15,6 +15,7 @@ pub enum BindingAction {
     DecreaseFontSize,
     Char(char),
     Esc(String),
+    Search,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -334,6 +335,7 @@ fn platform_keyboard_bindings() -> Vec<(Binding<InputKind>, BindingAction)> {
         Equals, Modifiers::MAC_CMD;     BindingAction::IncreaseFontSize;
         Plus,   Modifiers::MAC_CMD;     BindingAction::IncreaseFontSize;
         Minus,  Modifiers::MAC_CMD;     BindingAction::DecreaseFontSize;
+        F,      Modifiers::MAC_CMD;     BindingAction::Search;
     )
 }
 
@@ -348,6 +350,7 @@ fn platform_keyboard_bindings() -> Vec<(Binding<InputKind>, BindingAction)> {
         Equals, Modifiers::CTRL;                       BindingAction::IncreaseFontSize;
         Plus,   Modifiers::CTRL;                       BindingAction::IncreaseFontSize;
         Minus,  Modifiers::CTRL;                       BindingAction::DecreaseFontSize;
+        F,      Modifiers::CTRL;                       BindingAction::Search;
     )
 }
 

@@ -14,33 +14,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux
-          - os: ubuntu-latest
-            name: linux
-            arch: x86_64
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            name: linux
-            arch: aarch64
-            target: aarch64-unknown-linux-gnu
           # Windows
           - os: windows-latest
             name: windows
             arch: x86_64
             target: x86_64-pc-windows-msvc
-          - os: windows-latest
-            name: windows
-            arch: aarch64
-            target: aarch64-pc-windows-msvc
-          # MacOS
-          - os: macos-latest
-            name: macos
-            arch: x86_64
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            name: macos
-            arch: aarch64
-            target: aarch64-apple-darwin
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
