@@ -97,7 +97,7 @@ impl EventedReadWrite for Pty {
 
             poller.add_with_mode(
                 &self.signals,
-                Event::writable(PTY_CHILD_EVENT_TOKEN),
+                Event::readable(PTY_CHILD_EVENT_TOKEN),
                 PollMode::Level,
             )?;
         }
@@ -132,7 +132,7 @@ impl EventedReadWrite for Pty {
 
             poller.modify_with_mode(
                 &self.signals,
-                Event::writable(PTY_CHILD_EVENT_TOKEN),
+                Event::readable(PTY_CHILD_EVENT_TOKEN),
                 PollMode::Level,
             )?;
         }
