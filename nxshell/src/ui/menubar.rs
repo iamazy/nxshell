@@ -3,7 +3,7 @@ use crate::consts::{REPOSITORY_URL, SHOW_DOCK_PANEL_ONCE};
 use crate::db::Session;
 use crate::errors::NxError;
 use crate::ui::tab_view::Tab;
-use egui::{Button, Checkbox, Modifiers};
+use egui::{Button, Checkbox, MenuBar, Modifiers};
 use egui_dock::DockState;
 use egui_term::{Authentication, SshOptions, TermType};
 use orion::aead::{open as orion_open, SecretKey};
@@ -17,7 +17,7 @@ const BTN_WIDTH: f32 = 200.0;
 
 impl NxShell {
     pub fn menubar(&mut self, ui: &mut egui::Ui) {
-        egui::menu::bar(ui, |ui| {
+        MenuBar::new().ui(ui, |ui| {
             // Session
             self.session_menu(ui);
             // Window
@@ -43,7 +43,7 @@ impl NxShell {
             let new_session_btn = Button::new("New Session").min_size((BTN_WIDTH, 0.).into());
             if ui.add(new_session_btn).clicked() {
                 *self.opts.show_add_session_modal.borrow_mut() = true;
-                ui.close_menu();
+                ui.close();
             }
             let new_term_shortcut = ui.ctx().format_shortcut(&new_term_shortcut);
             let new_term_btn = Button::new("New Terminal")
@@ -56,7 +56,7 @@ impl NxShell {
                         working_directory: None,
                     },
                 );
-                ui.close_menu();
+                ui.close();
             }
             ui.separator();
             if ui.button("Quit").clicked() {
@@ -166,7 +166,7 @@ fn window_menu(ui: &mut egui::Ui) {
                 }
                 Err(err) => error!("failed to get current exe path: {err}"),
             }
-            ui.close_menu();
+            ui.close();
         }
     });
 }

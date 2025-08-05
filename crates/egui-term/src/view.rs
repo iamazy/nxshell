@@ -3,9 +3,12 @@ use crate::bindings::Binding;
 use crate::bindings::{BindingAction, Bindings, InputKind};
 use crate::font::TerminalFont;
 use crate::input::InputAction;
+use crate::scroll_bar::{InteractiveScrollbar, ScrollbarState};
 use crate::theme::TerminalTheme;
 use crate::types::Size;
+use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::Point;
+use alacritty_terminal::vte::ansi::{Color, NamedColor};
 use egui::ImeEvent;
 use egui::Widget;
 use egui::{Context, Event};
@@ -22,6 +25,7 @@ pub struct TerminalViewState {
     pub cursor_position: Option<Pos2>,
     // ime_enabled: bool,
     // ime_cursor_range: CursorRange,
+    pub scrollbar_state: ScrollbarState,
 }
 
 impl TerminalViewState {
@@ -57,38 +61,66 @@ pub struct TerminalOptions<'a> {
 
 impl Widget for TerminalView<'_> {
     fn ui(mut self, ui: &mut egui::Ui) -> Response {
-        let (layout, painter) = ui.allocate_painter(self.size, egui::Sense::click());
-
         let widget_id = self.widget_id;
         let mut state = TerminalViewState::load(ui.ctx(), widget_id);
+        let mut layout_opt = None;
 
-        if layout.contains_pointer() {
-            *self.options.active_tab_id = Some(self.widget_id);
-            layout.ctx.set_cursor_icon(CursorIcon::Text);
-        } else {
-            layout.ctx.set_cursor_icon(CursorIcon::Default);
-        }
+        ui.horizontal(|ui| {
+            let size_p = Vec2::new(self.size.x - InteractiveScrollbar::WIDTH, self.size.y);
+            let (layout, painter) = ui.allocate_painter(size_p, egui::Sense::click());
 
-        if self.options.active_tab_id.is_none() {
-            self.has_focus = false;
-        }
+            if layout.contains_pointer() {
+                *self.options.active_tab_id = Some(self.widget_id);
+                layout.ctx.set_cursor_icon(CursorIcon::Text);
+            } else {
+                layout.ctx.set_cursor_icon(CursorIcon::Default);
+            }
 
-        // context menu
-        if let Some(pos) = state.cursor_position {
-            self.context_menu(pos, &layout, ui);
-        }
-        if ui.input(|input_state| input_state.pointer.primary_clicked()) {
-            state.cursor_position = None;
-            ui.close_menu();
-        }
+            if self.options.active_tab_id.is_none() {
+                self.has_focus = false;
+            }
 
-        self.focus(&layout)
-            .resize(&layout)
-            .process_input(&mut state, &layout)
-            .show(&mut state, &layout, &painter);
+            // context menu
+            if let Some(pos) = state.cursor_position {
+                self.context_menu(pos, &layout, ui);
+            }
+            if ui.input(|input_state| input_state.pointer.primary_clicked()) {
+                state.cursor_position = None;
+                ui.close();
+            }
 
-        state.store(ui.ctx(), widget_id);
-        layout
+            let background = self.theme().get_color(Color::Named(NamedColor::Background));
+
+            let mut term = self
+                .focus(&layout)
+                .resize(&layout)
+                .process_input(&mut state, &layout);
+
+            let grid = term.term_ctx.terminal.grid_mut();
+            let total_lines = grid.total_lines() as f32;
+            let display_offset = grid.display_offset() as f32;
+            let cell_height = term.term_ctx.size.cell_height as f32;
+            let total_height = cell_height * total_lines;
+            let display_offset_pos = display_offset * cell_height;
+
+            let mut scrollbar = InteractiveScrollbar::new(background);
+            scrollbar.set_first_row_pos(display_offset_pos);
+            scrollbar.ui(total_height, ui);
+            if let Some(new_first_row_pos) = scrollbar.new_first_row_pos {
+                let total_row_pos = new_first_row_pos + state.scrollbar_state.scroll_pixels;
+                let new_pos = total_row_pos / cell_height;
+                state.scrollbar_state.scroll_pixels = total_row_pos % cell_height;
+                let line_diff = new_pos - display_offset;
+                let line_delta = Scroll::Delta(line_diff.ceil() as i32);
+                grid.scroll_display(line_delta);
+            }
+
+            term.show(&mut state, &layout, &painter);
+
+            state.store(ui.ctx(), widget_id);
+            layout_opt = Some(layout);
+        });
+        layout_opt.unwrap()
     }
 }
 

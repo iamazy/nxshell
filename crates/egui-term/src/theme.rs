@@ -148,8 +148,7 @@ impl TerminalTheme {
                         _ => &self.palette.background,
                     };
 
-                    return hex_to_color(color)
-                        .unwrap_or_else(|_| panic!("invalid color {}", color));
+                    return hex_to_color(color).unwrap_or_else(|_| panic!("invalid color {color}"));
                 }
 
                 // Other colors
@@ -197,7 +196,7 @@ impl TerminalTheme {
                     _ => &self.palette.background,
                 };
 
-                hex_to_color(color).unwrap_or_else(|_| panic!("invalid color {}", color))
+                hex_to_color(color).unwrap_or_else(|_| panic!("invalid color {color}"))
             }
         }
     }

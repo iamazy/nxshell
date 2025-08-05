@@ -238,7 +238,7 @@ impl Terminal {
             RegexSearch::new(url_regex).map_err(|err| IoError::new(ErrorKind::InvalidData, err))?;
         let _pty_event_loop_thread = pty_event_loop.spawn();
         let _pty_event_subscription = std::thread::Builder::new()
-            .name(format!("pty_event_subscription_{}", id))
+            .name(format!("pty_event_subscription_{id}"))
             .spawn(move || while let Ok(event) = event_receiver.recv() {
                 pty_event_proxy_sender
                     .send((id, event.clone()))
@@ -347,7 +347,7 @@ impl<'a> TerminalContext<'a> {
         self.terminal
             .selection
             .as_ref()
-            .map_or(true, Selection::is_empty)
+            .is_none_or(Selection::is_empty)
     }
 
     pub fn write_data<I: Into<Cow<'static, [u8]>>>(&mut self, data: I) {
