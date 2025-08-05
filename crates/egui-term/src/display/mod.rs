@@ -176,7 +176,7 @@ impl TerminalView<'_> {
         if ui.add(copy_btn).clicked() {
             let data = self.term_ctx.selection_content();
             layout.ctx.copy_text(data);
-            ui.close_menu();
+            ui.close();
         }
     }
 
@@ -192,7 +192,7 @@ impl TerminalView<'_> {
                 self.term_ctx.write_data(data.into_bytes());
                 self.term_ctx.terminal.selection = None;
             }
-            ui.close_menu();
+            ui.close();
         }
     }
 
@@ -205,7 +205,7 @@ impl TerminalView<'_> {
         let select_all_btn = context_btn("Select All", btn_width, Some(select_all_shortcut));
         if ui.add(select_all_btn).clicked() {
             self.term_ctx.select_all();
-            ui.close_menu();
+            ui.close();
         }
     }
 }

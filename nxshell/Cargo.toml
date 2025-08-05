@@ -11,7 +11,7 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
-catppuccin-egui = { workspace = true, features = ["egui31"] }
+catppuccin-egui = { workspace = true, features = ["egui32"] }
 chrono.workspace = true
 copypasta.workspace = true
 egui.workspace = true
@@ -22,11 +22,11 @@ eframe = { workspace = true, features = [
     "persistence", # Enable restoring app state when restarting the app.
 ] }
 egui-term = { path = "../crates/egui-term" }
-egui_dock = { path = "../crates/egui-dock" }
+egui_dock.workspace = true
 egui_extras = { workspace = true, features = ["all_loaders"] }
 egui_form = { workspace = true, features = ["validator_garde"] }
 egui-phosphor.workspace = true
-egui-theme-switch = { path = "../crates/egui-theme-switch" }
+egui-theme-switch.workspace = true
 egui-toast = { path = "../crates/egui-toast" }
 garde = { workspace = true, features = ["full"] }
 homedir.workspace = true
@@ -37,7 +37,7 @@ rusqlite = { workspace = true, features = ["bundled"] }
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-uuid = { workspace = true, features = ["v4"] }
+wgpu.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = ["Win32_System_Threading"] }

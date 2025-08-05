@@ -6,6 +6,7 @@ use crate::consts::GLOBAL_COUNTER;
 use crate::ui::tab_view::session::SessionList;
 use copypasta::ClipboardContext;
 use egui::{Label, Response, Sense, Ui};
+use egui_dock::tab_viewer::OnCloseResponse;
 use egui_dock::{DockArea, Style};
 use egui_phosphor::regular::{DRONE, NUMPAD};
 use egui_term::{
@@ -20,7 +21,7 @@ use tracing::error;
 
 #[derive(PartialEq)]
 enum TabInner {
-    Term(TerminalTab),
+    Term(Box<TerminalTab>),
     SessionList(SessionList),
 }
 
@@ -51,11 +52,11 @@ impl Tab {
 
         Ok(Self {
             id,
-            inner: TabInner::Term(TerminalTab {
+            inner: TabInner::Term(Box::new(TerminalTab {
                 terminal,
                 terminal_theme: TerminalTheme::default(),
                 term_type: typ,
-            }),
+            })),
         })
     }
 
@@ -158,13 +159,13 @@ impl egui_dock::TabViewer for TabViewer<'_> {
         matches!(&mut tab.inner, TabInner::Term(_))
     }
 
-    fn on_close(&mut self, tab: &mut Self::Tab) -> bool {
+    fn on_close(&mut self, tab: &mut Self::Tab) -> OnCloseResponse {
         match self.command_sender.send((tab.id, PtyEvent::Exit)) {
             Err(err) => {
                 error!("close tab {} failed: {err}", tab.id);
-                false
+                OnCloseResponse::Ignore
             }
-            Ok(_) => true,
+            Ok(_) => OnCloseResponse::Close,
         }
     }
 

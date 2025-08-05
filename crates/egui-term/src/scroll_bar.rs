@@ -14,13 +14,15 @@ impl Default for ScrollbarState {
 pub struct InteractiveScrollbar {
     pub first_row_pos: f32,
     pub new_first_row_pos: Option<f32>,
+    pub background: Color32,
 }
 
 impl InteractiveScrollbar {
-    pub fn new() -> Self {
+    pub fn new(background: Color32) -> Self {
         Self {
             first_row_pos: 0.0,
             new_first_row_pos: None,
+            background,
         }
     }
 
@@ -28,7 +30,7 @@ impl InteractiveScrollbar {
         self.first_row_pos = row;
     }
 
-    pub const WIDTH: f32 = 16.0;
+    pub const WIDTH: f32 = 8.0;
     pub const MARGIN: f32 = 0.0;
 }
 
@@ -56,20 +58,12 @@ impl InteractiveScrollbar {
             Vec2::new(scrollbar_width, slider_height),
         );
 
-        ui.painter().rect_filled(
-            scrollbar_rect,
-            0.0,
-            Color32::BLACK, //from_gray(100)
-        );
-
-        ui.painter().rect_filled(
-            slider_rect,
-            0.0,
-            Color32::DARK_GRAY, //from_gray(200)
-        );
+        ui.painter()
+            .rect_filled(scrollbar_rect, 0.0, self.background);
+        ui.painter()
+            .rect_filled(slider_rect, 0.0, Color32::DARK_GRAY);
 
         let response = ui.allocate_rect(slider_rect, Sense::click_and_drag());
-
         let scrollbar_response = ui.allocate_rect(scrollbar_rect, Sense::click());
 
         if response.dragged() {
@@ -89,16 +83,6 @@ impl InteractiveScrollbar {
                 self.new_first_row_pos = Some(new_first_row_pos);
             }
         }
-
-        // mouse wheel
-        /*
-        let scroll_delta = ui.input(|i| i.smooth_scroll_delta.y);
-        if scroll_delta != 0.0 {
-            self.state.position += scroll_delta * 1.0;
-            self.state.position = self.state.position.clamp(0.0, height);
-        }
-        */
-
         ui.ctx().request_repaint();
     }
 }

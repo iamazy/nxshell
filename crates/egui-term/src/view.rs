@@ -8,6 +8,7 @@ use crate::theme::TerminalTheme;
 use crate::types::Size;
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::Point;
+use alacritty_terminal::vte::ansi::{Color, NamedColor};
 use egui::ImeEvent;
 use egui::Widget;
 use egui::{Context, Event};
@@ -85,8 +86,10 @@ impl Widget for TerminalView<'_> {
             }
             if ui.input(|input_state| input_state.pointer.primary_clicked()) {
                 state.cursor_position = None;
-                ui.close_menu();
+                ui.close();
             }
+
+            let background = self.theme().get_color(Color::Named(NamedColor::Background));
 
             let mut term = self
                 .focus(&layout)
@@ -100,7 +103,7 @@ impl Widget for TerminalView<'_> {
             let total_height = cell_height * total_lines;
             let display_offset_pos = display_offset * cell_height;
 
-            let mut scrollbar = InteractiveScrollbar::new();
+            let mut scrollbar = InteractiveScrollbar::new(background);
             scrollbar.set_first_row_pos(display_offset_pos);
             scrollbar.ui(total_height, ui);
             if let Some(new_first_row_pos) = scrollbar.new_first_row_pos {
