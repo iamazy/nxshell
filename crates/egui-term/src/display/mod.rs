@@ -182,7 +182,7 @@ impl TerminalView<'_> {
 
     fn paste_btn(&mut self, ui: &mut egui::Ui, btn_width: f32) {
         #[cfg(not(target_os = "macos"))]
-        let paste_shortcut = KeyboardShortcut::new(Modifiers::CTRL, Key::V);
+        let paste_shortcut = KeyboardShortcut::new(Modifiers::CTRL | Modifiers::SHIFT, Key::V);
         #[cfg(target_os = "macos")]
         let paste_shortcut = KeyboardShortcut::new(Modifiers::MAC_CMD, Key::V);
         let paste_shortcut = ui.ctx().format_shortcut(&paste_shortcut);

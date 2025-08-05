@@ -240,11 +240,14 @@ impl<'a> TerminalView<'a> {
                     modifiers,
                     pos,
                 } => {
-                    if out_of_terminal(pos, layout) {
-                        continue;
-                    }
+                    let new_pos = if out_of_terminal(pos, layout) {
+                        pos.clamp(layout.rect.min, layout.rect.max)
+                    } else {
+                        pos
+                    };
+
                     if let Some(action) =
-                        self.button_click(state, layout, button, pos, &modifiers, pressed)
+                        self.button_click(state, layout, button, new_pos, &modifiers, pressed)
                     {
                         input_actions.push(action);
                     }
