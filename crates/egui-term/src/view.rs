@@ -63,12 +63,11 @@ impl Widget for TerminalView<'_> {
     fn ui(mut self, ui: &mut egui::Ui) -> Response {
         let widget_id = self.widget_id;
         let mut state = TerminalViewState::load(ui.ctx(), widget_id);
-        let mut layout_opt = None;
+
+        let size_p = Vec2::new(self.size.x - InteractiveScrollbar::WIDTH, self.size.y);
+        let (layout, painter) = ui.allocate_painter(size_p, egui::Sense::click());
 
         ui.horizontal(|ui| {
-            let size_p = Vec2::new(self.size.x - InteractiveScrollbar::WIDTH, self.size.y);
-            let (layout, painter) = ui.allocate_painter(size_p, egui::Sense::click());
-
             if layout.contains_pointer() {
                 *self.options.active_tab_id = Some(self.widget_id);
                 layout.ctx.set_cursor_icon(CursorIcon::Text);
@@ -82,7 +81,9 @@ impl Widget for TerminalView<'_> {
 
             // context menu
             if let Some(pos) = state.cursor_position {
-                self.context_menu(pos, &layout, ui);
+                if !out_of_terminal(pos, &layout) {
+                    self.context_menu(pos, &layout, ui);
+                }
             }
             if ui.input(|input_state| input_state.pointer.primary_clicked()) {
                 state.cursor_position = None;
@@ -118,9 +119,8 @@ impl Widget for TerminalView<'_> {
             term.show(&mut state, &layout, &painter);
 
             state.store(ui.ctx(), widget_id);
-            layout_opt = Some(layout);
         });
-        layout_opt.unwrap()
+        layout
     }
 }
 
