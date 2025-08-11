@@ -91,6 +91,7 @@ impl NxShell {
             state_manager,
         })
     }
+    
     pub fn start(options: NativeOptions) -> eframe::Result<()> {
         eframe::run_native(
             "NxShell",

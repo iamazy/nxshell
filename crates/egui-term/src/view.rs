@@ -20,7 +20,6 @@ use egui::{Response, Vec2};
 #[derive(Clone, Default)]
 pub struct TerminalViewState {
     pub is_dragged: bool,
-    pub scroll_pixels: f32,
     // for terminal
     pub mouse_point: Point,
     pub mouse_position: Option<Pos2>,

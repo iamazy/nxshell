@@ -105,9 +105,9 @@ impl TerminalView<'_> {
             }
             (MouseWheelUnit::Point, _) => {
                 let font_size = self.options.font.font_size();
-                state.scroll_pixels -= delta.y;
-                let lines = (state.scroll_pixels / font_size).trunc();
-                state.scroll_pixels %= font_size;
+                state.scrollbar_state.scroll_pixels -= delta.y;
+                let lines = (state.scrollbar_state.scroll_pixels / font_size).trunc();
+                state.scrollbar_state.scroll_pixels %= font_size;
                 if lines != 0.0 {
                     Some(InputAction::BackendCall(BackendCommand::Scroll(
                         -lines as i32,
