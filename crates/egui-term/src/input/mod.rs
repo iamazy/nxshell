@@ -4,7 +4,7 @@ use crate::{BindingAction, InputKind, TerminalView};
 use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::selection::SelectionType;
 use alacritty_terminal::term::TermMode;
-use egui::{Key, Modifiers, MouseWheelUnit, PointerButton, Pos2, Response, Vec2};
+use egui::{Key, Modifiers, MouseWheelUnit, PointerButton, Pos2, Rect, Response, Vec2};
 use std::cmp::min;
 
 /// Minimum number of pixels at the bottom/top where selection scrolling is performed.
@@ -160,7 +160,7 @@ impl TerminalView<'_> {
                 state.mouse_point,
                 pressed,
             )))
-        } else if pressed {
+        } else if pressed && is_in_terminal(position, layout.rect) {
             state.is_dragged = true;
             Some(InputAction::BackendCall(start_select_command(
                 layout, position,
@@ -293,4 +293,8 @@ fn start_select_command(layout: &Response, cursor_position: Pos2) -> BackendComm
         cursor_position.x - layout.rect.min.x,
         cursor_position.y - layout.rect.min.y,
     )
+}
+
+pub fn is_in_terminal(pos: Pos2, rect: Rect) -> bool {
+    pos.x > rect.min.x && pos.x < rect.max.x && pos.y > rect.min.y && pos.y < rect.max.y
 }

@@ -2,7 +2,7 @@ use crate::alacritty::{BackendCommand, TerminalContext};
 use crate::bindings::Binding;
 use crate::bindings::{BindingAction, Bindings, InputKind};
 use crate::font::TerminalFont;
-use crate::input::InputAction;
+use crate::input::{is_in_terminal, InputAction};
 use crate::scroll_bar::{InteractiveScrollbar, ScrollbarState};
 use crate::theme::TerminalTheme;
 use crate::types::Size;
@@ -82,7 +82,7 @@ impl Widget for TerminalView<'_> {
 
             // context menu
             if let Some(pos) = state.context_menu_position {
-                if !out_of_terminal(pos, layout.rect) {
+                if is_in_terminal(pos, layout.rect) {
                     self.context_menu(pos, &layout, ui);
                 }
             }
@@ -100,7 +100,7 @@ impl Widget for TerminalView<'_> {
                 .process_input(&mut state, &layout);
 
             if let Some(pos) = state.mouse_position {
-                if !out_of_terminal(pos, layout.rect) {
+                if is_in_terminal(pos, layout.rect) {
                     if let Some(cur_pos) = state.cursor_position {
                         ui.ctx().output_mut(|output| {
                             let vec = Vec2::new(15., 15.);
@@ -257,10 +257,10 @@ impl<'a> TerminalView<'a> {
                     modifiers,
                     pos,
                 } => {
-                    let new_pos = if out_of_terminal(pos, layout.rect) {
-                        pos.clamp(layout.rect.min, layout.rect.max)
-                    } else {
+                    let new_pos = if is_in_terminal(pos, layout.rect) {
                         pos
+                    } else {
+                        pos.clamp(layout.rect.min, layout.rect.max)
                     };
 
                     if let Some(action) =
@@ -302,8 +302,4 @@ impl<'a> TerminalView<'a> {
 
         self
     }
-}
-
-fn out_of_terminal(pos: Pos2, rect: Rect) -> bool {
-    !(pos.x > rect.min.x && pos.x < rect.max.x && pos.y > rect.min.y && pos.y < rect.max.y)
 }
