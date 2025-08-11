@@ -193,7 +193,6 @@ impl TerminalView<'_> {
             if let Ok(data) = self.term_ctx.clipboard.get_contents() {
                 self.term_ctx.write_data(data.into_bytes());
                 self.term_ctx.terminal.selection = None;
-                ui.ctx().request_repaint();
             }
             ui.close();
         }
