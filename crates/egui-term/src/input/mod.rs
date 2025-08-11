@@ -4,7 +4,7 @@ use crate::{BindingAction, InputKind, TerminalView};
 use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::selection::SelectionType;
 use alacritty_terminal::term::TermMode;
-use egui::{Key, Modifiers, MouseWheelUnit, PointerButton, Pos2, Response, Vec2};
+use egui::{Key, Modifiers, MouseWheelUnit, PointerButton, Pos2, Rect, Response, Vec2};
 use std::cmp::min;
 
 /// Minimum number of pixels at the bottom/top where selection scrolling is performed.
@@ -134,7 +134,7 @@ impl TerminalView<'_> {
                 self.left_button_click(state, layout, position, modifiers, pressed)
             }
             PointerButton::Secondary => {
-                state.cursor_position = Some(position);
+                state.context_menu_position = Some(position);
                 None
             }
             _ => None,
@@ -149,7 +149,7 @@ impl TerminalView<'_> {
         modifiers: &Modifiers,
         pressed: bool,
     ) -> Option<InputAction> {
-        if state.cursor_position.is_some() {
+        if state.context_menu_position.is_some() {
             return None;
         }
         let terminal_mode = self.term_ctx.terminal.mode();
@@ -157,10 +157,10 @@ impl TerminalView<'_> {
             Some(InputAction::BackendCall(BackendCommand::MouseReport(
                 MouseButton::LeftButton,
                 *modifiers,
-                state.mouse_position,
+                state.mouse_point,
                 pressed,
             )))
-        } else if pressed {
+        } else if pressed && is_in_terminal(position, layout.rect) {
             state.is_dragged = true;
             Some(InputAction::BackendCall(start_select_command(
                 layout, position,
@@ -189,7 +189,7 @@ impl TerminalView<'_> {
                 *self.term_ctx.terminal.mode(),
             ) {
                 Some(BindingAction::LinkOpen) => Some(InputAction::BackendCall(
-                    BackendCommand::ProcessLink(LinkAction::Open, state.mouse_position),
+                    BackendCommand::ProcessLink(LinkAction::Open, state.mouse_point),
                 )),
                 _ => None,
             }
@@ -203,21 +203,22 @@ impl TerminalView<'_> {
         position: Pos2,
         modifiers: &Modifiers,
     ) -> Vec<InputAction> {
-        let cursor_x = position.x - layout.rect.min.x;
-        let cursor_y = position.y - layout.rect.min.y;
+        let mouse_x = position.x - layout.rect.min.x;
+        let mouse_y = position.y - layout.rect.min.y;
 
-        state.mouse_position = selection_point(
-            cursor_x,
-            cursor_y,
+        state.mouse_point = selection_point(
+            mouse_x,
+            mouse_y,
             self.term_ctx.size,
             self.term_ctx.terminal.grid().display_offset(),
         );
+        state.mouse_position = Some(position);
 
         let mut actions = vec![];
         // Handle command or selection update based on terminal mode and modifiers
         if state.is_dragged {
             if !self.term_ctx.selection_is_empty() {
-                if let Some(action) = self.update_selection_scrolling(cursor_y as i32) {
+                if let Some(action) = self.update_selection_scrolling(mouse_y as i32) {
                     actions.push(action);
                 }
             }
@@ -232,11 +233,11 @@ impl TerminalView<'_> {
                 InputAction::BackendCall(BackendCommand::MouseReport(
                     MouseButton::LeftMove,
                     *modifiers,
-                    state.mouse_position,
+                    state.mouse_point,
                     true,
                 ))
             } else {
-                InputAction::BackendCall(BackendCommand::SelectUpdate(cursor_x, cursor_y))
+                InputAction::BackendCall(BackendCommand::SelectUpdate(mouse_x, mouse_y))
             };
 
             actions.push(cmd);
@@ -245,7 +246,7 @@ impl TerminalView<'_> {
         // Handle link hover if applicable
         actions.push(InputAction::BackendCall(BackendCommand::ProcessLink(
             LinkAction::Hover,
-            state.mouse_position,
+            state.mouse_point,
         )));
 
         actions
@@ -292,4 +293,8 @@ fn start_select_command(layout: &Response, cursor_position: Pos2) -> BackendComm
         cursor_position.x - layout.rect.min.x,
         cursor_position.y - layout.rect.min.y,
     )
+}
+
+pub fn is_in_terminal(pos: Pos2, rect: Rect) -> bool {
+    pos.x > rect.min.x && pos.x < rect.max.x && pos.y > rect.min.y && pos.y < rect.max.y
 }

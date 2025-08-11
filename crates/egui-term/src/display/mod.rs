@@ -46,10 +46,11 @@ impl TerminalView<'_> {
                 .term_ctx
                 .to_range()
                 .is_some_and(|r| r.contains(indexed.point));
-            let is_hovered_hyperlink =
-                self.term_ctx.hovered_hyperlink.as_ref().is_some_and(|r| {
-                    r.contains(&indexed.point) && r.contains(&state.mouse_position)
-                });
+            let is_hovered_hyperlink = self
+                .term_ctx
+                .hovered_hyperlink
+                .as_ref()
+                .is_some_and(|r| r.contains(&indexed.point) && r.contains(&state.mouse_point));
             let is_text_cell = indexed.c != ' ' && indexed.c != '\t';
 
             let x = layout_min.x + indexed.point.column.saturating_mul(cell_width as usize) as f32;
@@ -112,6 +113,7 @@ impl TerminalView<'_> {
                     cell_width / 2.
                 };
 
+                state.cursor_position = Some(Pos2::new(x, y));
                 shapes.push(Shape::Rect(RectShape::filled(
                     Rect::from_min_size(Pos2::new(x, y), Vec2::new(cursor_width, cell_height)),
                     CornerRadius::default(),

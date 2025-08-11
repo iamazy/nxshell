@@ -126,11 +126,6 @@ impl eframe::App for NxShell {
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::TOP), |ui| {
                         ui.label("Sessions");
                     });
-
-                    // TODO: add close menu
-                    // ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    //     ui.label("Sessions");
-                    // });
                 });
 
                 self.search_sessions(ui);

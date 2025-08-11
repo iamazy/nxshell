@@ -2,18 +2,19 @@ use crate::alacritty::{BackendCommand, TerminalContext};
 use crate::bindings::Binding;
 use crate::bindings::{BindingAction, Bindings, InputKind};
 use crate::font::TerminalFont;
-use crate::input::InputAction;
+use crate::input::{is_in_terminal, InputAction};
 use crate::scroll_bar::{InteractiveScrollbar, ScrollbarState};
 use crate::theme::TerminalTheme;
 use crate::types::Size;
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::Point;
 use alacritty_terminal::vte::ansi::{Color, NamedColor};
-use egui::ImeEvent;
+use egui::output::IMEOutput;
 use egui::Widget;
 use egui::{Context, Event};
 use egui::{CursorIcon, Key};
 use egui::{Id, Pos2};
+use egui::{ImeEvent, Rect};
 use egui::{Response, Vec2};
 
 #[derive(Clone, Default)]
@@ -21,10 +22,10 @@ pub struct TerminalViewState {
     pub is_dragged: bool,
     pub scroll_pixels: f32,
     // for terminal
-    pub mouse_position: Point,
+    pub mouse_point: Point,
+    pub mouse_position: Option<Pos2>,
+    pub context_menu_position: Option<Pos2>,
     pub cursor_position: Option<Pos2>,
-    // ime_enabled: bool,
-    // ime_cursor_range: CursorRange,
     pub scrollbar_state: ScrollbarState,
 }
 
@@ -80,13 +81,14 @@ impl Widget for TerminalView<'_> {
             }
 
             // context menu
-            if let Some(pos) = state.cursor_position {
-                if !out_of_terminal(pos, &layout) {
+            if let Some(pos) = state.context_menu_position {
+                if is_in_terminal(pos, layout.rect) {
                     self.context_menu(pos, &layout, ui);
                 }
             }
+
             if ui.input(|input_state| input_state.pointer.primary_clicked()) {
-                state.cursor_position = None;
+                state.context_menu_position = None;
                 ui.close();
             }
 
@@ -96,6 +98,20 @@ impl Widget for TerminalView<'_> {
                 .focus(&layout)
                 .resize(&layout)
                 .process_input(&mut state, &layout);
+
+            if let Some(pos) = state.mouse_position {
+                if is_in_terminal(pos, layout.rect) {
+                    if let Some(cur_pos) = state.cursor_position {
+                        ui.ctx().output_mut(|output| {
+                            let vec = Vec2::new(15., 15.);
+                            output.ime = Some(IMEOutput {
+                                rect: Rect::from_min_size(cur_pos, vec),
+                                cursor_rect: Rect::from_min_size(cur_pos, vec),
+                            })
+                        });
+                    }
+                }
+            }
 
             let grid = term.term_ctx.terminal.grid_mut();
             let total_lines = grid.total_lines() as f32;
@@ -241,10 +257,10 @@ impl<'a> TerminalView<'a> {
                     modifiers,
                     pos,
                 } => {
-                    let new_pos = if out_of_terminal(pos, layout) {
-                        pos.clamp(layout.rect.min, layout.rect.max)
-                    } else {
+                    let new_pos = if is_in_terminal(pos, layout.rect) {
                         pos
+                    } else {
+                        pos.clamp(layout.rect.min, layout.rect.max)
                     };
 
                     if let Some(action) =
@@ -257,15 +273,17 @@ impl<'a> TerminalView<'a> {
                     input_actions = self.mouse_move(state, layout, pos, &modifiers)
                 }
                 Event::Ime(event) => match event {
-                    ImeEvent::Disabled => {
-                        // state.ime_enabled = false;
+                    ImeEvent::Preedit(text_mark) => {
+                        if text_mark != "\n" && text_mark != "\r" {
+                            // TODO: handle preedit
+                        }
                     }
-                    ImeEvent::Enabled | ImeEvent::Preedit(_) => {
-                        // state.ime_enabled = true;
+                    ImeEvent::Commit(prediction) => {
+                        if prediction != "\n" && prediction != "\r" {
+                            input_actions.push(self.text_input(&prediction));
+                        }
                     }
-                    ImeEvent::Commit(text) => {
-                        input_actions.push(self.text_input(&text));
-                    }
+                    _ => {}
                 },
                 _ => {}
             };
@@ -284,11 +302,4 @@ impl<'a> TerminalView<'a> {
 
         self
     }
-}
-
-fn out_of_terminal(pos: Pos2, layout: &Response) -> bool {
-    !(pos.x > layout.rect.min.x
-        && pos.x < layout.rect.max.x
-        && pos.y > layout.rect.min.y
-        && pos.y < layout.rect.max.y)
 }
