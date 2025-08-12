@@ -40,7 +40,7 @@ An open-source, cross-platform SSH session manager powered by <a href="https://g
 
 ### Roadmap 🏁
 
-- [ ] Scrollbar
+- [x] Scrollbar
 - [ ] Minimap
 - [ ] Colorful terminal
 - [ ] Sftp
