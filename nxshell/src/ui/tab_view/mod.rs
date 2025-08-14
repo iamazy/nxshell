@@ -5,7 +5,7 @@ use crate::app::{NxShell, NxShellOptions};
 use crate::consts::GLOBAL_COUNTER;
 use crate::ui::tab_view::session::SessionList;
 use copypasta::ClipboardContext;
-use egui::{Label, Response, Sense, Ui};
+use egui::{Label, Sense, Ui};
 use egui_dock::tab_viewer::OnCloseResponse;
 use egui_dock::{DockArea, Style};
 use egui_phosphor::regular::{DRONE, NUMPAD};
@@ -135,22 +135,6 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                     ui.label("Stroke color:");
                     ui.label("Background color:");
                 });
-            }
-        }
-    }
-
-    fn on_tab_button(&mut self, tab: &mut Self::Tab, response: &Response) {
-        if response.hovered() {
-            if let TabInner::Term(term) = &mut tab.inner {
-                if let TermType::Ssh { options } = &term.term_type {
-                    if let Authentication::Password(..) = options.auth {
-                        response.show_tooltip_text(format!(
-                            "{}:{}",
-                            options.host,
-                            options.port.unwrap_or(22)
-                        ));
-                    }
-                }
             }
         }
     }
