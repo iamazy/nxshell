@@ -353,6 +353,7 @@ impl<'a> TerminalContext<'a> {
     pub fn write_data<I: Into<Cow<'static, [u8]>>>(&mut self, data: I) {
         self.write(data);
         self.terminal.scroll_display(Scroll::Bottom);
+        self.terminal.selection = None;
     }
 
     fn process_link(&mut self, link_action: LinkAction, point: Point) {
