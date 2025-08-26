@@ -230,8 +230,10 @@ impl Terminal {
         let event_proxy = EventProxy(event_sender);
         let term = Term::new(config, &term_size, event_proxy.clone());
         let term = Arc::new(FairMutex::new(term));
+
         let pty_event_loop = EventLoop::new(term.clone(), event_proxy, pty, false, false)?;
         let notifier = Notifier(pty_event_loop.channel());
+        let pty_notifier = Notifier(pty_event_loop.channel());
 
         let url_regex = r#"(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file://|git://|ssh:|ftp://)[^\u{0000}-\u{001F}\u{007F}-\u{009F}<>"\s{-}\^⟨⟩`]+"#;
         let url_regex =
@@ -246,8 +248,10 @@ impl Terminal {
                         panic!("pty_event_subscription_{id}: sending PtyEvent is failed, error: {err}")
                     });
                 app_context.request_repaint();
-                if let Event::Exit = event {
-                    break;
+                match event {
+                    Event::Exit => break,
+                    Event::PtyWrite(s) => pty_notifier.notify(s.into_bytes()),
+                    _ => {}
                 }
             })?;
 
