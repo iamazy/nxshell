@@ -11,8 +11,8 @@ use alacritty_terminal::vte::ansi::{Color, NamedColor};
 use copypasta::ClipboardProvider;
 use egui::epaint::RectShape;
 use egui::{
-    Align2, Area, Button, Color32, CornerRadius, CursorIcon, Id, Key, KeyboardShortcut, Modifiers,
-    Painter, Pos2, Rect, Response, Vec2, WidgetText,
+    Align2, Button, CornerRadius, CursorIcon, Key, KeyboardShortcut, Modifiers, Painter, Pos2,
+    Rect, Response, Vec2, WidgetText,
 };
 use egui::{Shape, Stroke};
 
@@ -148,24 +148,19 @@ impl TerminalView<'_> {
 }
 
 impl TerminalView<'_> {
-    pub fn context_menu(&mut self, pos: Pos2, layout: &Response, ui: &mut egui::Ui) {
-        Area::new(Id::new(format!("context_menu_{:?}", self.id())))
-            .fixed_pos(pos)
-            .order(egui::Order::Foreground)
-            .show(ui.ctx(), |ui| {
-                egui::Frame::popup(ui.style()).show(ui, |ui| {
-                    let width = 200.;
-                    ui.set_width(width);
-                    // copy btn
-                    self.copy_btn(ui, layout, width);
-                    // paste btn
-                    self.paste_btn(ui, width);
+    pub fn context_menu(&mut self, layout: &Response) {
+        layout.context_menu(|ui| {
+            let width = 200.;
+            ui.set_width(width);
+            // copy btn
+            self.copy_btn(ui, layout, width);
+            // paste btn
+            self.paste_btn(ui, width);
 
-                    ui.separator();
-                    // select all btn
-                    self.select_all_btn(ui, width);
-                });
-            });
+            ui.separator();
+            // select all btn
+            self.select_all_btn(ui, width);
+        });
     }
 
     fn copy_btn(&mut self, ui: &mut egui::Ui, layout: &Response, btn_width: f32) {
@@ -217,9 +212,7 @@ fn context_btn<'a>(
     width: f32,
     shortcut: Option<String>,
 ) -> Button<'a> {
-    let mut btn = Button::new(text)
-        .fill(Color32::TRANSPARENT)
-        .min_size((width, 0.).into());
+    let mut btn = Button::new(text).min_size((width, 0.).into());
     if let Some(shortcut) = shortcut {
         btn = btn.shortcut_text(shortcut);
     }
