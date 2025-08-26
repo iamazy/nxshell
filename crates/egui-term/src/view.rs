@@ -256,10 +256,15 @@ impl<'a> TerminalView<'a> {
                     modifiers,
                     pos,
                 } => {
-                    let new_pos = if is_in_terminal(pos, layout.rect) {
-                        pos
-                    } else {
+                    let out_of = !is_in_terminal(pos, layout.rect);
+                    if out_of && pressed {
+                        continue;
+                    }
+
+                    let new_pos = if out_of {
                         pos.clamp(layout.rect.min, layout.rect.max)
+                    } else {
+                        pos
                     };
 
                     if let Some(action) =
