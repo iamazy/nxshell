@@ -8,7 +8,6 @@ use egui::{
 use egui_form::garde::GardeReport;
 use egui_form::{Form, FormField};
 use egui_term::{Authentication, SshOptions, TermType};
-use egui_toast::Toasts;
 use garde::Validate;
 use orion::aead::{seal, SecretKey};
 use std::fmt::Display;
@@ -91,7 +90,7 @@ impl SessionState {
 }
 
 impl NxShell {
-    pub fn show_add_session_window(&mut self, ctx: &Context, toasts: &mut Toasts) {
+    pub fn show_add_session_window(&mut self, ctx: &Context) {
         let session_id = Id::new(SessionState::id());
         let mut session_state = SessionState::load(ctx, session_id);
 
@@ -114,7 +113,7 @@ impl NxShell {
                                 Ok(_) => should_close = true,
                                 Err(err) => {
                                     error!("failed to add session: {err}");
-                                    toasts.add(error_toast(err.to_string()));
+                                    self.toasts.add(error_toast(err.to_string()));
                                 }
                             }
                         }
