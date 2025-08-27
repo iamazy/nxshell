@@ -8,6 +8,7 @@ mod scroll_bar;
 mod ssh;
 mod theme;
 mod types;
+mod ui;
 mod view;
 
 pub use alacritty::{PtyEvent, TermType, Terminal, TerminalContext};

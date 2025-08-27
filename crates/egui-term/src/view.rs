@@ -139,7 +139,7 @@ impl<'a> TerminalView<'a> {
 
         Self {
             widget_id,
-            has_focus: false,
+            has_focus: true,
             size: ui.available_size(),
             term_ctx,
             options,
