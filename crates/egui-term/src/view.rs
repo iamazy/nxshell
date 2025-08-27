@@ -23,7 +23,6 @@ pub struct TerminalViewState {
     // for terminal
     pub mouse_point: Point,
     pub mouse_position: Option<Pos2>,
-    pub context_menu_position: Option<Pos2>,
     pub cursor_position: Option<Pos2>,
     pub scrollbar_state: ScrollbarState,
 }
@@ -79,17 +78,7 @@ impl Widget for TerminalView<'_> {
                 self.has_focus = false;
             }
 
-            // context menu
-            if let Some(pos) = state.context_menu_position {
-                if is_in_terminal(pos, layout.rect) {
-                    self.context_menu(pos, &layout, ui);
-                }
-            }
-
-            if ui.input(|input_state| input_state.pointer.primary_clicked()) {
-                state.context_menu_position = None;
-                ui.close();
-            }
+            self.context_menu(&layout);
 
             let background = self.theme().get_color(Color::Named(NamedColor::Background));
 
@@ -150,7 +139,7 @@ impl<'a> TerminalView<'a> {
 
         Self {
             widget_id,
-            has_focus: false,
+            has_focus: true,
             size: ui.available_size(),
             term_ctx,
             options,

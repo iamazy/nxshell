@@ -81,9 +81,8 @@ impl eframe::App for App {
                     default_font_size: 14.,
                     active_tab_id: &mut self.active_tab,
                 };
-                let terminal = TerminalView::new(ui, term_ctx, term_opt)
-                    .set_focus(true)
-                    .set_size(ui.available_size());
+                let terminal =
+                    TerminalView::new(ui, term_ctx, term_opt).set_size(ui.available_size());
 
                 ui.add(terminal);
             }

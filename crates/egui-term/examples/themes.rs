@@ -107,7 +107,6 @@ impl eframe::App for App {
                 active_tab_id: &mut self.active_id,
             };
             let terminal = TerminalView::new(ui, term_ctx, term_opt)
-                .set_focus(true)
                 .set_size(Vec2::new(ui.available_width(), ui.available_height()));
 
             ui.add(terminal);

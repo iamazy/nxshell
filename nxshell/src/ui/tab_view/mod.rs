@@ -118,9 +118,8 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                     active_tab_id: &mut self.options.active_tab_id,
                 };
 
-                let terminal = TerminalView::new(ui, term_ctx, term_opt)
-                    .set_focus(true)
-                    .set_size(ui.available_size());
+                let terminal =
+                    TerminalView::new(ui, term_ctx, term_opt).set_size(ui.available_size());
                 ui.add(terminal);
             }
             TabInner::SessionList(_list) => {

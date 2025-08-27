@@ -133,10 +133,6 @@ impl TerminalView<'_> {
             PointerButton::Primary => {
                 self.left_button_click(state, layout, position, modifiers, pressed)
             }
-            PointerButton::Secondary => {
-                state.context_menu_position = Some(position);
-                None
-            }
             _ => None,
         }
     }
@@ -149,7 +145,7 @@ impl TerminalView<'_> {
         modifiers: &Modifiers,
         pressed: bool,
     ) -> Option<InputAction> {
-        if state.context_menu_position.is_some() {
+        if layout.context_menu_opened() {
             return None;
         }
         let terminal_mode = self.term_ctx.terminal.mode();

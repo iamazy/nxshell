@@ -66,6 +66,7 @@ pub struct NxShell {
     pub clipboard: ClipboardContext,
     pub db: DbConn,
     pub opts: NxShellOptions,
+    pub toasts: Toasts,
 }
 
 impl NxShell {
@@ -89,6 +90,9 @@ impl NxShell {
                 ..Default::default()
             },
             state_manager,
+            toasts: Toasts::new()
+                .anchor(Align2::CENTER_CENTER, (10.0, 10.0))
+                .direction(egui::Direction::TopDown),
         })
     }
 
@@ -112,10 +116,6 @@ impl eframe::App for NxShell {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.recv_event();
 
-        let mut toasts = Toasts::new()
-            .anchor(Align2::CENTER_CENTER, (10.0, 10.0))
-            .direction(egui::Direction::TopDown);
-
         egui::TopBottomPanel::top("main_top_panel").show(ctx, |ui| {
             self.menubar(ui);
         });
@@ -131,7 +131,7 @@ impl eframe::App for NxShell {
 
                 self.search_sessions(ui);
                 ui.separator();
-                self.list_sessions(ctx, ui, &mut toasts);
+                self.list_sessions(ctx, ui);
             });
         egui::TopBottomPanel::bottom("main_bottom_panel").show(ctx, |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
@@ -141,14 +141,14 @@ impl eframe::App for NxShell {
 
         if *self.opts.show_add_session_modal.borrow() {
             self.opts.surrender_focus();
-            self.show_add_session_window(ctx, &mut toasts);
+            self.show_add_session_window(ctx);
         }
 
         egui::CentralPanel::default().show(ctx, |_ui| {
             self.tab_view(ctx);
         });
 
-        toasts.show(ctx);
+        self.toasts.show(ctx);
     }
 }
 
@@ -165,7 +165,7 @@ impl NxShell {
         }
     }
 
-    fn list_sessions(&mut self, ctx: &egui::Context, ui: &mut egui::Ui, toasts: &mut Toasts) {
+    fn list_sessions(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         if let Some(sessions) = self.state_manager.sessions.take() {
             for (group, sessions) in sessions.iter() {
                 CollapsingHeader::new(group)
@@ -183,12 +183,12 @@ impl NxShell {
                                         if let Err(err) =
                                             self.add_shell_tab_with_secret(ctx, session)
                                         {
-                                            toasts.add(error_toast(err.to_string()));
+                                            self.toasts.add(error_toast(err.to_string()));
                                         }
                                     }
                                     Ok(None) => {}
                                     Err(err) => {
-                                        toasts.add(error_toast(err.to_string()));
+                                        self.toasts.add(error_toast(err.to_string()));
                                     }
                                 }
                             } else if response.secondary_clicked() {
