@@ -145,6 +145,9 @@ impl TerminalView<'_> {
         modifiers: &Modifiers,
         pressed: bool,
     ) -> Option<InputAction> {
+        if layout.context_menu_opened() {
+            return None;
+        }
         let terminal_mode = self.term_ctx.terminal.mode();
         if terminal_mode.intersects(TermMode::MOUSE_MODE) {
             Some(InputAction::BackendCall(BackendCommand::MouseReport(
