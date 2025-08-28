@@ -220,7 +220,7 @@ impl NxShell {
 
 fn set_font(ctx: &egui::Context) {
     let name = "仓耳舒圆体";
-    let font = include_bytes!("../assets/fonts/仓耳舒圆体W01.ttf");
+    let font = include_bytes!("../assets/fonts/MapleMono-NF-CN-Light.ttf");
     let mut fonts = egui::FontDefinitions::default();
     fonts
         .font_data
