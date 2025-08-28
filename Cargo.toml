@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/alacritty_terminal",
     "crates/egui-term",
     "crates/egui-toast",
     "nxshell",
@@ -18,8 +19,9 @@ categories = ["terminal", "egui"]
 keywords = ["terminal", "egui"]
 
 [workspace.dependencies]
-alacritty_terminal = { git = "https://github.com/alacritty/alacritty" }
 anyhow = "1"
+base64 = "0.22"
+bitflags = "2"
 catppuccin-egui = { version = "5.6", default-features = false }
 chrono = "0.4"
 copypasta = "0.10"
@@ -31,21 +33,34 @@ egui_form = "0.6"
 egui-phosphor = "0.10"
 egui-theme-switch = "0.4"
 garde = "0.22"
+home = "0.5"
 homedir = "0.3"
 indexmap = "2"
+libc = "0.2"
+log = "0.4"
+miow = "0.6"
 open = "5"
 orion = "0.17"
 parking_lot = "0.12"
+piper = "0.2"
 polling = "3"
+regex = "1"
+regex-automata = "0.4"
 rusqlite = "0.33"
-rustix = "0.38"
+rustix = { version = "1", default-features = false }
+rustix-openpty = "0.2"
+serde = "1"
+serde_json = "1"
 signal-hook = "0.3"
 smol = "2"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+unicode-width = "0.2"
+vte = { version = "0.15", default-features = false }
 wezterm-ssh = { git = "https://github.com/iamazy/wezterm.git", branch = "nxssh" }
 windows = "0.59"
+windows-sys = "0.59"
 wgpu = "25"
 
 [profile.release]

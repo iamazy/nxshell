@@ -1,0 +1,48 @@
+[package]
+name = "alacritty_terminal"
+authors = ["Christian Duerr <contact@christianduerr.com>", "Joe Wilm <joe@jwilm.com>"]
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[features]
+default = ["serde"]
+serde = ["dep:serde", "bitflags/serde", "vte/serde"]
+
+[dependencies]
+base64.workspace = true
+bitflags.workspace = true
+home.workspace = true
+libc.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+polling.workspace = true
+regex-automata.workspace = true
+unicode-width.workspace = true
+vte = { workspace = true, features = ["std", "ansi"] }
+serde = { workspace = true, features = ["derive", "rc"], optional = true }
+
+[target.'cfg(unix)'.dependencies]
+rustix-openpty.workspace = true
+rustix = { workspace = true, features = ["std"] }
+signal-hook.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+piper.workspace = true
+miow.workspace = true
+windows-sys = { workspace = true, features = [
+    "Win32_System_Console",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_WindowsProgramming",
+] }
+
+[dev-dependencies]
+serde_json.workspace = true

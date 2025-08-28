@@ -11,7 +11,7 @@ categories.workspace = true
 keywords.workspace = true
 
 [dependencies]
-alacritty_terminal.workspace = true
+alacritty_terminal = { path = "../alacritty_terminal" }
 anyhow.workspace = true
 copypasta.workspace = true
 egui.workspace = true
@@ -28,8 +28,8 @@ signal-hook.workspace = true
 
 [dev-dependencies]
 eframe = { workspace = true, features = [
-    "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
+    "accesskit", # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
-    "wgpu",          # Use the glow rendering backend. Alternative: "wgpu".
-    "persistence",   # Enable restoring app state when restarting the app.
+    "wgpu", # Use the glow rendering backend. Alternative: "wgpu".
+    "persistence", # Enable restoring app state when restarting the app.
 ] }
